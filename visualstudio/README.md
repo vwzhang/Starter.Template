@@ -6,6 +6,8 @@ The NuGet `dotnet new` package remains the primary template source. The VSIX bui
 
 ## Build
 
+Requires Visual Studio with the Visual Studio extension development workload.
+
 ```powershell
 .\visualstudio\Build-Vsix.ps1
 ```
