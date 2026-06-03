@@ -1,0 +1,72 @@
+{
+  "$schema": "http://json.schemastore.org/template",
+  "author": "vwzhang",
+  "classifications": [
+    "Web",
+    "Aspire",
+    "Blazor",
+    "Admin",
+    "PostgreSQL"
+  ],
+  "name": "Enhanced Aspire Starter",
+  "identity": "Vwzhang.EnhancedAspireStarter.CSharp",
+  "groupIdentity": "Vwzhang.EnhancedAspireStarter",
+  "shortName": "enhanced-aspire-starter",
+  "sourceName": "Starter",
+  "preferNameDirectory": true,
+  "tags": {
+    "language": "C#",
+    "type": "solution"
+  },
+  "guids": [
+    "f6e76cbf-2d79-4b8b-9023-113ac10e07f9"
+  ],
+  "symbols": {
+    "authorName": {
+      "type": "parameter",
+      "datatype": "text",
+      "defaultValue": "Your Organization",
+      "replaces": "vwzhang",
+      "description": "Owner name used in generated project metadata and license text."
+    }
+  },
+  "sources": [
+    {
+      "source": "./",
+      "target": "./",
+      "modifiers": [
+        {
+          "exclude": [
+            ".git/**",
+            ".vs/**",
+            ".agents/**",
+            ".codex/**",
+            ".claude/**",
+            ".playwright-cli/**",
+            "**/bin/**",
+            "**/obj/**",
+            "AGENTS.md",
+            ".mcp.json"
+          ]
+        }
+      ]
+    }
+  ],
+  "primaryOutputs": [
+    {
+      "path": "Starter.slnx"
+    }
+  ],
+  "postActions": [
+    {
+      "description": "Restore NuGet packages",
+      "manualInstructions": [
+        {
+          "text": "Run 'dotnet restore' in the generated solution directory."
+        }
+      ],
+      "actionId": "210D431B-A78B-4D2F-B762-4ED3E3EA9025",
+      "continueOnError": true
+    }
+  ]
+}
