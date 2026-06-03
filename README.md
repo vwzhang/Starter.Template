@@ -11,7 +11,7 @@ dotnet pack
 ## Install Locally
 
 ```powershell
-dotnet new install .\bin\Debug\Vwzhang.EnhancedAspireStarter.Templates.0.1.0.nupkg
+dotnet new install .\bin\Release\Vwzhang.EnhancedAspireStarter.Templates.0.1.1.nupkg
 ```
 
 ## Create A New App
