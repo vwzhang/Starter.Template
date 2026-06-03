@@ -1,7 +1,7 @@
 param(
     [string] $TemplateSource = (Join-Path $PSScriptRoot "..\templates\enhanced-aspire-starter"),
     [string] $OutputDirectory = (Join-Path $PSScriptRoot "..\artifacts\vsix"),
-    [string] $Version = "0.1.1",
+    [string] $Version = "0.1.2",
     [string] $Publisher = "vwzhang"
 )
 
@@ -130,6 +130,47 @@ function Add-ProjectItemXml(
     $Writer.WriteEndElement()
 }
 
+function Test-VendorTemplateFile([string] $RelativePath) {
+    return $RelativePath -match '(^|\\)wwwroot\\lib\\'
+}
+
+function Add-DirectoryItemsXml(
+    [System.Xml.XmlWriter] $Writer,
+    [string] $CurrentDirectory,
+    [string] $ProjectDirectory,
+    [string] $ProjectName
+) {
+    $files = Get-ChildItem -LiteralPath $CurrentDirectory -File -Force |
+        Where-Object {
+            $_.Name -ne "$ProjectName.vstemplate" -and
+            $_.Name -ne "$ProjectName.csproj"
+        } |
+        Sort-Object Name
+
+    foreach ($file in $files) {
+        $relativePath = Get-RelativePath $ProjectDirectory $file.FullName
+        $targetFileName = $file.Name.Replace("Starter", '$ext_safeprojectname$')
+        $replaceParameters = (Test-TextTemplateFile $file.FullName) -and -not (Test-VendorTemplateFile $relativePath)
+        Add-ProjectItemXml $Writer $file.Name $targetFileName $replaceParameters
+    }
+
+    $directories = Get-ChildItem -LiteralPath $CurrentDirectory -Directory -Force |
+        Where-Object {
+            $_.Name -notin @("bin", "obj", ".git", ".vs", "_solution")
+        } |
+        Sort-Object Name
+
+    foreach ($childDirectory in $directories) {
+        $targetFolderName = $childDirectory.Name.Replace("Starter", '$ext_safeprojectname$')
+
+        $Writer.WriteStartElement("Folder")
+        $Writer.WriteAttributeString("Name", $childDirectory.Name)
+        $Writer.WriteAttributeString("TargetFolderName", $targetFolderName)
+        Add-DirectoryItemsXml $Writer $childDirectory.FullName $ProjectDirectory $ProjectName
+        $Writer.WriteEndElement()
+    }
+}
+
 function New-ProjectTemplateFile(
     [string] $ProjectDirectory,
     [string] $ProjectName,
@@ -156,7 +197,7 @@ function New-ProjectTemplateFile(
         $writer.WriteElementString("Description", $Description)
         $writer.WriteElementString("ProjectType", "CSharp")
         $writer.WriteElementString("Hidden", "true")
-        $writer.WriteElementString("CreateNewFolder", "true")
+        $writer.WriteElementString("DefaultName", $shortProjectName)
         $writer.WriteEndElement()
 
         $writer.WriteStartElement("TemplateContent")
@@ -165,26 +206,7 @@ function New-ProjectTemplateFile(
         $writer.WriteAttributeString("TargetFileName", $targetProjectFile)
         $writer.WriteAttributeString("ReplaceParameters", "true")
 
-        $files = Get-ChildItem -LiteralPath $ProjectDirectory -Recurse -File -Force |
-            Where-Object {
-                $relativeCandidate = Get-RelativePath $ProjectDirectory $_.FullName
-                $_.Name -ne "$ProjectName.vstemplate" -and
-                $_.Name -ne $projectFile -and
-                $relativeCandidate -notmatch "(^|\\)(bin|obj)(\\|$)"
-            } |
-            Sort-Object FullName
-
-        foreach ($file in $files) {
-            $relativePath = Get-RelativePath $ProjectDirectory $file.FullName
-            $targetFileName = $relativePath
-
-            if ($relativePath.StartsWith("_solution\", [System.StringComparison]::OrdinalIgnoreCase)) {
-                $targetFileName = "..\" + $relativePath.Substring("_solution\".Length)
-            }
-
-            $targetFileName = $targetFileName.Replace("Starter", '$ext_safeprojectname$')
-            Add-ProjectItemXml $writer $relativePath $targetFileName (Test-TextTemplateFile $file.FullName)
-        }
+        Add-DirectoryItemsXml $writer $ProjectDirectory $ProjectDirectory $ProjectName
 
         $writer.WriteEndElement()
         $writer.WriteEndElement()
@@ -331,23 +353,6 @@ $projects = @(
 
 foreach ($project in $projects) {
     Copy-Item -LiteralPath (Join-Path $templateSourcePath $project) -Destination (Join-Path $templateRoot $project) -Recurse -Force
-}
-
-$solutionStaging = Join-Path $templateRoot "Starter.AppHost\_solution"
-New-Item -ItemType Directory -Path $solutionStaging -Force | Out-Null
-
-foreach ($solutionItem in @(".gitignore", "aspire.config.json", "LICENSE", "README.md", "Starter.slnx")) {
-    $sourcePath = Join-Path $templateSourcePath $solutionItem
-    if (Test-Path -LiteralPath $sourcePath) {
-        Copy-Item -LiteralPath $sourcePath -Destination (Join-Path $solutionStaging $solutionItem) -Force
-    }
-}
-
-foreach ($solutionDirectory in @(".github", "docs")) {
-    $sourcePath = Join-Path $templateSourcePath $solutionDirectory
-    if (Test-Path -LiteralPath $sourcePath) {
-        Copy-Item -LiteralPath $sourcePath -Destination (Join-Path $solutionStaging $solutionDirectory) -Recurse -Force
-    }
 }
 
 Convert-ToTemplateTokenizedFiles $templateRoot
