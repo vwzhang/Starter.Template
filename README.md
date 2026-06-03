@@ -30,6 +30,14 @@ aspire start --apphost MyStarter.AppHost\MyStarter.AppHost.csproj
 
 The generated app includes Blazor, ASP.NET Core Identity, PostgreSQL, Redis, pgAdmin, smtp4dev, a migration service, admin modules, system settings, and a CRUD sample.
 
+## Build The Visual Studio VSIX
+
+```powershell
+.\visualstudio\Build-Vsix.ps1
+```
+
+This produces `artifacts\vsix\EnhancedAspireStarter.VisualStudio.0.1.1.vsix` for local install or Visual Studio Marketplace upload.
+
 ## Template Maintenance
 
 Use `scripts\Sync-TemplateSource.ps1` from this repository after updating the source starter app.
