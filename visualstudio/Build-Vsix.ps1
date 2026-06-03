@@ -1,7 +1,7 @@
 param(
     [string] $TemplateSource = (Join-Path $PSScriptRoot "..\templates\enhanced-aspire-starter"),
     [string] $OutputDirectory = (Join-Path $PSScriptRoot "..\artifacts\vsix"),
-    [string] $Version = "0.1.2",
+    [string] $Version = "0.1.3",
     [string] $Publisher = "vwzhang"
 )
 
@@ -94,6 +94,117 @@ function New-ZipFromDirectoryContent([string] $SourceDirectory, [string] $Destin
                 $entryName,
                 [System.IO.Compression.CompressionLevel]::Optimal
             ) | Out-Null
+        }
+    }
+    finally {
+        $zip.Dispose()
+    }
+}
+
+function Set-ZipTextEntry(
+    [System.IO.Compression.ZipArchive] $Zip,
+    [string] $EntryName,
+    [string] $Content
+) {
+    $existingEntry = $Zip.GetEntry($EntryName)
+    if ($existingEntry) {
+        $existingEntry.Delete()
+    }
+
+    $entry = $Zip.CreateEntry($EntryName, [System.IO.Compression.CompressionLevel]::Optimal)
+    $stream = $entry.Open()
+    try {
+        $writer = [System.IO.StreamWriter]::new($stream, [System.Text.UTF8Encoding]::new($false))
+        try {
+            $writer.Write($Content)
+        }
+        finally {
+            $writer.Dispose()
+        }
+    }
+    finally {
+        $stream.Dispose()
+    }
+}
+
+function Get-ZipTextEntry(
+    [System.IO.Compression.ZipArchive] $Zip,
+    [string] $EntryName
+) {
+    $entry = $Zip.GetEntry($EntryName)
+    if (-not $entry) {
+        return $null
+    }
+
+    $stream = $entry.Open()
+    try {
+        $reader = [System.IO.StreamReader]::new($stream)
+        try {
+            return $reader.ReadToEnd()
+        }
+        finally {
+            $reader.Dispose()
+        }
+    }
+    finally {
+        $stream.Dispose()
+    }
+}
+
+function Add-TemplateZipToVsix(
+    [string] $VsixPath,
+    [string] $TemplateZipPath,
+    [string] $EntryName
+) {
+    Add-Type -AssemblyName System.IO.Compression
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+
+    $zip = [System.IO.Compression.ZipFile]::Open($VsixPath, [System.IO.Compression.ZipArchiveMode]::Update)
+    try {
+        $existingTemplateEntry = $zip.GetEntry($EntryName)
+        if ($existingTemplateEntry) {
+            $existingTemplateEntry.Delete()
+        }
+
+        [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile(
+            $zip,
+            $TemplateZipPath,
+            $EntryName,
+            [System.IO.Compression.CompressionLevel]::Optimal
+        ) | Out-Null
+
+        [xml] $contentTypes = Get-ZipTextEntry $zip "[Content_Types].xml"
+        $contentTypesNamespace = $contentTypes.Types.NamespaceURI
+        $zipContentType = $contentTypes.Types.Default | Where-Object { $_.Extension -eq "zip" } | Select-Object -First 1
+        if (-not $zipContentType) {
+            $zipContentType = $contentTypes.CreateElement("Default", $contentTypesNamespace)
+            $zipContentType.SetAttribute("Extension", "zip")
+            $zipContentType.SetAttribute("ContentType", "application/zip")
+            $contentTypes.Types.AppendChild($zipContentType) | Out-Null
+            Set-ZipTextEntry $zip "[Content_Types].xml" $contentTypes.OuterXml
+        }
+
+        $manifestJson = Get-ZipTextEntry $zip "manifest.json"
+        if ($manifestJson) {
+            $manifest = $manifestJson | ConvertFrom-Json
+            $entryFileName = "/" + $EntryName
+            $files = @($manifest.files)
+            $hasEntry = $files | Where-Object { $_.fileName -eq $entryFileName } | Select-Object -First 1
+
+            if (-not $hasEntry) {
+                $files += [pscustomobject] @{
+                    fileName = $entryFileName
+                    sha256 = $null
+                }
+
+                $manifest.files = $files
+            }
+
+            if ($manifest.installSizes -and $manifest.installSizes.targetDrive) {
+                $manifest.installSizes.targetDrive = [int64] $manifest.installSizes.targetDrive + (Get-Item -LiteralPath $TemplateZipPath).Length
+            }
+
+            Set-ZipTextEntry $zip "manifest.json" ($manifest | ConvertTo-Json -Depth 50 -Compress)
         }
     }
     finally {
@@ -276,7 +387,7 @@ function Write-VsixManifest([string] $Path, [string] $Version, [string] $Publish
     <Dependency Id="Microsoft.Framework.NDP" DisplayName="Microsoft .NET Framework" Version="[4.5,)" />
   </Dependencies>
   <Assets>
-    <Asset Type="Microsoft.VisualStudio.ProjectTemplate" Path="ProjectTemplates" />
+    <Asset Type="Microsoft.VisualStudio.ProjectTemplate" Path="ProjectTemplates\CSharp\Aspire\EnhancedAspireStarter.zip" />
   </Assets>
   <Prerequisites>
     <Prerequisite Id="Microsoft.VisualStudio.Component.CoreEditor" Version="[17.0,19.0)" DisplayName="Visual Studio core editor" />
@@ -308,7 +419,11 @@ function Write-VsixProjectFile(
   </PropertyGroup>
   <ItemGroup>
     <None Include="source.extension.vsixmanifest" />
-    <Content Include="ProjectTemplates\CSharp\Aspire\EnhancedAspireStarter.zip" IncludeInVSIX="true" VSIXSubPath="ProjectTemplates\CSharp\Aspire" />
+    <ZipProject Include="ProjectTemplates\CSharp\Aspire\EnhancedAspireStarter\**\*">
+      <RootPath>ProjectTemplates\CSharp\Aspire\EnhancedAspireStarter</RootPath>
+      <Language>CSharp</Language>
+      <OutputSubPath>Aspire</OutputSubPath>
+    </ZipProject>
     <Content Include="Resources\LICENSE.txt" IncludeInVSIX="true" VSIXSubPath="Resources" />
     <Content Include="Resources\ReleaseNotes.txt" IncludeInVSIX="true" VSIXSubPath="Resources" />
   </ItemGroup>
@@ -324,6 +439,7 @@ $outputPath = Resolve-FullPath $OutputDirectory
 $workPath = Join-Path $outputPath "obj"
 $templateRoot = Join-Path $workPath "EnhancedAspireStarter"
 $vsixProjectRoot = Join-Path $workPath "vsix-project"
+$vsixProjectTemplateRoot = Join-Path $vsixProjectRoot "ProjectTemplates\CSharp\Aspire\EnhancedAspireStarter"
 $templateZip = Join-Path $vsixProjectRoot "ProjectTemplates\CSharp\Aspire\EnhancedAspireStarter.zip"
 $vsixBuildOutput = Join-Path $vsixProjectRoot "bin\Release\EnhancedAspireStarter.VisualStudio.vsix"
 $vsixPath = Join-Path $outputPath "EnhancedAspireStarter.VisualStudio.$Version.vsix"
@@ -373,6 +489,7 @@ foreach ($project in $projects) {
 }
 
 New-ZipFromDirectoryContent $templateRoot $templateZip
+Copy-Item -LiteralPath $templateRoot -Destination $vsixProjectTemplateRoot -Recurse -Force
 Copy-Item -LiteralPath (Join-Path $templateSourcePath "LICENSE") -Destination (Join-Path $vsixProjectRoot "Resources\LICENSE.txt") -Force
 Write-Utf8NoBom (Join-Path $vsixProjectRoot "Resources\ReleaseNotes.txt") "Initial Visual Studio Marketplace package for the Enhanced Aspire Starter project template."
 Write-VsixManifest (Join-Path $vsixProjectRoot "source.extension.vsixmanifest") $Version $Publisher
@@ -397,6 +514,7 @@ if (-not (Test-Path -LiteralPath $vsixBuildOutput)) {
 }
 
 Copy-Item -LiteralPath $vsixBuildOutput -Destination $vsixPath -Force
+Add-TemplateZipToVsix $vsixPath $templateZip "ProjectTemplates/CSharp/Aspire/EnhancedAspireStarter.zip"
 
 Write-Host "Project template zip: $templateZip"
 Write-Host "VSIX package: $vsixPath"
