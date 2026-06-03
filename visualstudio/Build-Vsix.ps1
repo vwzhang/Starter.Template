@@ -1,7 +1,7 @@
 param(
     [string] $TemplateSource = (Join-Path $PSScriptRoot "..\templates\enhanced-aspire-starter"),
     [string] $OutputDirectory = (Join-Path $PSScriptRoot "..\artifacts\vsix"),
-    [string] $Version = "0.1.5",
+    [string] $Version = "0.1.6",
     [string] $Publisher = "vwzhang"
 )
 
@@ -309,6 +309,7 @@ function New-ProjectTemplateFile(
         $writer.WriteElementString("ProjectType", "CSharp")
         $writer.WriteElementString("Hidden", "true")
         $writer.WriteElementString("DefaultName", $shortProjectName)
+        $writer.WriteElementString("CreateInPlace", "true")
         $writer.WriteEndElement()
 
         $writer.WriteStartElement("TemplateContent")
@@ -349,6 +350,7 @@ function Write-RootTemplate([string] $Path) {
     <ProjectTypeTag>.NET</ProjectTypeTag>
     <DefaultName>MyAspireStarter</DefaultName>
     <CreateNewFolder>true</CreateNewFolder>
+    <CreateInPlace>true</CreateInPlace>
     <ProvideDefaultName>true</ProvideDefaultName>
     <SortOrder>1000</SortOrder>
     <NumberOfParentCategoriesToRollUp>1</NumberOfParentCategoriesToRollUp>
