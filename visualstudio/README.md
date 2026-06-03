@@ -36,7 +36,7 @@ The publish script finds `VsixPublisher.exe` through Visual Studio SDK installat
 After changing the source starter app:
 
 ```powershell
-.\scripts\Sync-TemplateSource.ps1
-dotnet pack
-.\visualstudio\Build-Vsix.ps1
+.\scripts\Update-Template.ps1 -SourceRepository C:\Aspire\Starter -TemplateVersion 0.1.6
 ```
+
+Use the generated app's `*.Shared\TemplateInfo.cs` file to confirm which template version Visual Studio used.

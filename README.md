@@ -40,4 +40,10 @@ This produces `artifacts\vsix\EnhancedAspireStarter.VisualStudio.0.1.6.vsix` for
 
 ## Template Maintenance
 
-Use `scripts\Sync-TemplateSource.ps1` from this repository after updating the source starter app.
+After updating the source starter app, run the release helper from this repository:
+
+```powershell
+.\scripts\Update-Template.ps1 -SourceRepository C:\Aspire\Starter -TemplateVersion 0.1.6
+```
+
+The helper syncs `templates\enhanced-aspire-starter`, preserves the generated `TemplateInfo.cs` version marker, updates package/VSIX version references, runs `dotnet pack`, and builds the Visual Studio VSIX.

@@ -1,6 +1,7 @@
 param(
     [string] $SourceRepository = "C:\Aspire\Starter",
-    [string] $TemplateContent = "C:\Aspire\Starter.Template\templates\enhanced-aspire-starter"
+    [string] $TemplateContent = "C:\Aspire\Starter.Template\templates\enhanced-aspire-starter",
+    [string] $TemplateVersion = "0.1.6"
 )
 
 $ErrorActionPreference = "Stop"
@@ -47,7 +48,34 @@ if (Test-Path -LiteralPath $readmePath) {
     $readme = $readme.Replace(
         "This repository is meant to be cloned or used as a GitHub template when you want a real app foundation instead of a blank demo. It includes the pieces most teams add immediately: identity, roles, admin pages, PostgreSQL, Redis, migrations, local email capture, typed DTOs, a Minimal API, a Blazor frontend, and an integration test that starts the distributed app.",
         "This repository was generated from an enhanced Aspire starter template. It includes the pieces most teams add immediately: identity, roles, admin pages, PostgreSQL, Redis, migrations, local email capture, typed DTOs, a Minimal API, a Blazor frontend, and an integration test that starts the distributed app.")
+    $versionLine = "Template version: ``$TemplateVersion``. The same value is available in ``Starter.Shared.TemplateInfo.Version``."
+    $versionPattern = 'Template version: `[^`]+`\. The same value is available in `Starter\.Shared\.TemplateInfo\.Version`\.'
+
+    if ($readme -match $versionPattern) {
+        $readme = [regex]::Replace($readme, $versionPattern, $versionLine)
+    }
+    else {
+        $generatedParagraph = "This repository was generated from an enhanced Aspire starter template. It includes the pieces most teams add immediately: identity, roles, admin pages, PostgreSQL, Redis, migrations, local email capture, typed DTOs, a Minimal API, a Blazor frontend, and an integration test that starts the distributed app."
+        $readme = $readme.Replace($generatedParagraph, "$generatedParagraph`r`n`r`n$versionLine")
+    }
+
     Set-Content -LiteralPath $readmePath -Value $readme -NoNewline
+}
+
+$sharedDirectory = Join-Path $TemplateContent "Starter.Shared"
+if (Test-Path -LiteralPath $sharedDirectory) {
+    $templateInfoPath = Join-Path $sharedDirectory "TemplateInfo.cs"
+    $templateInfo = @"
+namespace Starter.Shared;
+
+public static class TemplateInfo
+{
+    public const string Name = "Enhanced Aspire Template";
+    public const string Version = "$TemplateVersion";
+}
+"@
+
+    [System.IO.File]::WriteAllText($templateInfoPath, $templateInfo + "`n", [System.Text.UTF8Encoding]::new($false))
 }
 
 Write-Host "Template source synchronized from $SourceRepository to $TemplateContent"
