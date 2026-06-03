@@ -11,7 +11,7 @@ dotnet pack
 ## Install Locally
 
 ```powershell
-dotnet new install .\bin\Release\Vwzhang.EnhancedAspireStarter.Templates.0.1.4.nupkg
+dotnet new install .\bin\Release\Vwzhang.EnhancedAspireStarter.Templates.0.1.5.nupkg
 ```
 
 ## Create A New App
@@ -36,7 +36,7 @@ The generated app includes Blazor, ASP.NET Core Identity, PostgreSQL, Redis, pgA
 .\visualstudio\Build-Vsix.ps1
 ```
 
-This produces `artifacts\vsix\EnhancedAspireStarter.VisualStudio.0.1.4.vsix` for local install or Visual Studio Marketplace upload.
+This produces `artifacts\vsix\EnhancedAspireStarter.VisualStudio.0.1.5.vsix` for local install or Visual Studio Marketplace upload.
 
 ## Template Maintenance
 
