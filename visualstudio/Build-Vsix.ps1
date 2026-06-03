@@ -1,7 +1,7 @@
 param(
     [string] $TemplateSource = (Join-Path $PSScriptRoot "..\templates\enhanced-aspire-starter"),
     [string] $OutputDirectory = (Join-Path $PSScriptRoot "..\artifacts\vsix"),
-    [string] $Version = "0.1.3",
+    [string] $Version = "0.1.4",
     [string] $Publisher = "vwzhang"
 )
 
@@ -337,6 +337,16 @@ function Write-RootTemplate([string] $Path) {
     <Name>Enhanced Aspire Starter</Name>
     <Description>Opinionated .NET Aspire starter with Blazor, Identity, PostgreSQL, Redis, pgAdmin, smtp4dev, migrations, admin modules, system settings, and a CRUD sample.</Description>
     <ProjectType>CSharp</ProjectType>
+    <LanguageTag>csharp</LanguageTag>
+    <PlatformTag>windows</PlatformTag>
+    <PlatformTag>linux</PlatformTag>
+    <PlatformTag>macos</PlatformTag>
+    <ProjectTypeTag>cloud</ProjectTypeTag>
+    <ProjectTypeTag>web</ProjectTypeTag>
+    <ProjectTypeTag>service</ProjectTypeTag>
+    <ProjectTypeTag>Aspire</ProjectTypeTag>
+    <ProjectTypeTag>Blazor</ProjectTypeTag>
+    <ProjectTypeTag>.NET</ProjectTypeTag>
     <DefaultName>MyAspireStarter</DefaultName>
     <CreateNewFolder>true</CreateNewFolder>
     <ProvideDefaultName>true</ProvideDefaultName>
@@ -387,7 +397,7 @@ function Write-VsixManifest([string] $Path, [string] $Version, [string] $Publish
     <Dependency Id="Microsoft.Framework.NDP" DisplayName="Microsoft .NET Framework" Version="[4.5,)" />
   </Dependencies>
   <Assets>
-    <Asset Type="Microsoft.VisualStudio.ProjectTemplate" Path="ProjectTemplates\CSharp\Aspire\EnhancedAspireStarter.zip" />
+    <Asset Type="Microsoft.VisualStudio.ProjectTemplate" Path="ProjectTemplates\CSharp" />
   </Assets>
   <Prerequisites>
     <Prerequisite Id="Microsoft.VisualStudio.Component.CoreEditor" Version="[17.0,19.0)" DisplayName="Visual Studio core editor" />
