@@ -6,19 +6,19 @@
 ![Visual Studio](https://img.shields.io/badge/Visual%20Studio-VSIX-5C2D91)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-Installable templates for creating a polished .NET 10 Aspire admin application foundation with Blazor, ASP.NET Core Identity, PostgreSQL, Redis, pgAdmin, smtp4dev, a migration service, admin modules, system settings, shared DTOs, and a database-backed CRUD sample.
+Installable templates for creating a polished .NET 10 Aspire admin application foundation with Blazor, ASP.NET Core Identity, PostgreSQL or SQL Server, Redis, pgAdmin, smtp4dev, a migration service, admin modules, system settings, shared DTOs, and a database-backed CRUD sample.
 
-Use the CLI template when you want options. Use the VSIX when you want a Visual Studio New Project experience with the complete default starter.
+Use the CLI template when you want scriptable generation. Use the VSIX when you want a Visual Studio New Project experience with the same major options.
 
 ## What It Creates
 
 | Area | Generated foundation |
 | --- | --- |
-| Aspire | AppHost with PostgreSQL 18, Redis, pgAdmin, smtp4dev, API, Web, and migrations |
+| Aspire | AppHost with PostgreSQL 18 or SQL Server, Redis, optional pgAdmin, optional smtp4dev, API, Web, and migrations |
 | Web | Blazor Web App, MudBlazor shell, app bar login state, admin/dev navigation |
 | Identity | Seeded admin/manager/user accounts, roles, permissions, self registration, forgot password |
 | Admin | Dashboard, users, roles, permissions, features, system configuration |
-| Data | EF Core migrations, PostgreSQL connection, API-owned Catalog sample |
+| Data | EF Core migrations, selected database provider, API-owned Catalog sample |
 | Email | Runtime SMTP settings and local smtp4dev capture |
 | Quality | Restore/build-ready solution and Aspire integration smoke test |
 
@@ -31,13 +31,13 @@ dotnet pack
 Current local package:
 
 ```text
-bin\Release\Vwzhang.EnhancedAspireStarter.Templates.0.1.14.nupkg
+bin\Release\Vwzhang.EnhancedAspireStarter.Templates.0.1.15.nupkg
 ```
 
 ## Install Locally
 
 ```powershell
-dotnet new install .\bin\Release\Vwzhang.EnhancedAspireStarter.Templates.0.1.14.nupkg
+dotnet new install .\bin\Release\Vwzhang.EnhancedAspireStarter.Templates.0.1.15.nupkg
 ```
 
 Confirm the template is visible:
@@ -63,14 +63,15 @@ The generated app opens with:
 - Workspace dashboard at `/`
 - Admin login at `/admin/login`
 - Catalog CRUD sample at `/dev/catalog`
-- pgAdmin at `http://localhost:5050` when included
-- smtp4dev at `http://localhost:5080` when included
+- pgAdmin at `http://localhost:5050` when PostgreSQL pgAdmin is enabled
+- smtp4dev at `http://localhost:5080` when local email capture is enabled
 
 ## Template Options
 
 ```powershell
 dotnet new aspire-admin-starter `
   -n AcmeOps `
+  --databaseProvider PostgreSql `
   --database-name acmeopsdb `
   --include-pgadmin true `
   --include-smtp4dev true `
@@ -80,8 +81,9 @@ dotnet new aspire-admin-starter `
 
 | Option | Default | Purpose |
 | --- | --- | --- |
-| `--database-name` | `<project-name>db` | PostgreSQL database and connection string name |
-| `--include-pgadmin` | `true` | Include local pgAdmin for inspecting PostgreSQL |
+| `--databaseProvider` | `PostgreSql` | Database provider used by AppHost, EF Core, migrations, API, and Web |
+| `--database-name` | `<project-name>db` | Database and connection string name |
+| `--include-pgadmin` | `true` | Include local pgAdmin when `--databaseProvider PostgreSql` |
 | `--include-smtp4dev` | `true` | Include local email capture for account flows |
 | `--seed-users` | `true` | Seed admin, manager, and user test accounts |
 | `--seed-sample-data` | `true` | Seed catalog categories and products |
@@ -94,6 +96,9 @@ dotnet new aspire-admin-starter -n BackOffice --database-name backoffice
 
 mkdir C:\Code\LeanApi; cd C:\Code\LeanApi
 dotnet new aspire-admin-starter -n LeanApi --include-pgadmin false --include-smtp4dev false
+
+mkdir C:\Code\SqlBackOffice; cd C:\Code\SqlBackOffice
+dotnet new aspire-admin-starter -n SqlBackOffice --databaseProvider SqlServer --include-pgadmin false
 
 mkdir C:\Code\CleanStart; cd C:\Code\CleanStart
 dotnet new aspire-admin-starter -n CleanStart --seed-users false --seed-sample-data false
@@ -120,19 +125,19 @@ Build the VSIX:
 Output:
 
 ```text
-artifacts\vsix\EnhancedAspireStarter.VisualStudio.0.1.14.vsix
+artifacts\vsix\EnhancedAspireStarter.VisualStudio.0.1.15.vsix
 ```
 
-Install it, restart Visual Studio, then search for `Aspire Admin Starter` in the New Project dialog. After you click Create, the template displays an options page for database name, pgAdmin, smtp4dev, and seed data.
+Install it, restart Visual Studio, then search for `Aspire Admin Starter` in the New Project dialog. After you click Create, the template displays an options page for database provider, database name, pgAdmin, smtp4dev, and seed data.
 
-The VSIX currently generates the complete default starter. The CLI package is the best path when you need the generation options.
+Selecting SQL Server disables pgAdmin because pgAdmin only applies to PostgreSQL. SQL Server apps run a SQL Server container and can be inspected from SSMS or Azure Data Studio on the host.
 
 ## Maintainer Workflow
 
 After changing the source starter app, run:
 
 ```powershell
-.\scripts\Update-Template.ps1 -SourceRepository C:\Aspire\Starter -TemplateVersion 0.1.14
+.\scripts\Update-Template.ps1 -SourceRepository C:\Aspire\Starter -TemplateVersion 0.1.15
 ```
 
 The helper:
@@ -149,11 +154,15 @@ The helper:
 Recommended checks before publishing a new template version:
 
 ```powershell
-dotnet new install .\bin\Release\Vwzhang.EnhancedAspireStarter.Templates.0.1.14.nupkg --force
+dotnet new install .\bin\Release\Vwzhang.EnhancedAspireStarter.Templates.0.1.15.nupkg --force
 mkdir C:\Temp\SmokeApp
 cd C:\Temp\SmokeApp
 dotnet new aspire-admin-starter -n SmokeApp --force
 dotnet build C:\Temp\SmokeApp\SmokeApp.slnx
+mkdir C:\Temp\SqlSmokeApp
+cd C:\Temp\SqlSmokeApp
+dotnet new aspire-admin-starter -n SqlSmokeApp --databaseProvider SqlServer --include-pgadmin false --force
+dotnet build C:\Temp\SqlSmokeApp\SqlSmokeApp.slnx
 mkdir C:\Temp\SlimApp
 cd C:\Temp\SlimApp
 dotnet new aspire-admin-starter -n SlimApp --include-pgadmin false --include-smtp4dev false --seed-users false --seed-sample-data false --force

@@ -6,13 +6,13 @@ Aspire Admin Starter is an opinionated Visual Studio project template for intern
 
 ## Included
 
-- .NET Aspire AppHost with PostgreSQL, Redis, pgAdmin, smtp4dev, API, migrations, and Blazor frontend
+- .NET Aspire AppHost with PostgreSQL or SQL Server, Redis, optional pgAdmin, optional smtp4dev, API, migrations, and Blazor frontend
 - Blazor Web App with MudBlazor and interactive server rendering
 - ASP.NET Core Identity with seeded admin, manager, and user accounts
 - Configurable registration, email confirmation, forgot password, and SMTP settings
 - Admin module with users, roles, permissions, and system configuration
 - Shared DTO project for API and frontend contracts
-- Dev pages with a CRUD sample wired through PostgreSQL and the Minimal API
+- Dev pages with a CRUD sample wired through the selected database provider and the Minimal API
 - Aspire integration test starter
 
 ## After Creating A Project
@@ -30,7 +30,7 @@ Default test password:
 Happy1..
 ```
 
-The generated app captures local email with smtp4dev and includes pgAdmin for PostgreSQL inspection.
+The generated app can capture local email with smtp4dev and includes pgAdmin for PostgreSQL inspection when those options are enabled.
 
 ## Other Install Options
 

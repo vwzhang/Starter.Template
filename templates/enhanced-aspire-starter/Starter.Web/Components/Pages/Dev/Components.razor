@@ -142,9 +142,11 @@
     [
         new("webfrontend", "Blazor UI", "Healthy", "https://localhost:7131", Icons.Material.Filled.Web, Color.Primary),
         new("apiservice", "Minimal API", "Healthy", "https://localhost:7313", Icons.Material.Filled.Api, Color.Info),
-        new("starterdb", "PostgreSQL database", "Healthy", "starterdb", Icons.Material.Filled.Storage, Color.Success),
+        new("starterdb", "Application database", "Healthy", "starterdb", Icons.Material.Filled.Storage, Color.Success),
         new("cache", "Redis output cache", "Healthy", "cache", Icons.Material.Filled.Memory, Color.Warning),
+@*#if (includeSmtp4dev)*@
         new("smtp4dev", "Local email inbox", "Healthy", "http://localhost:5080", Icons.Material.Filled.MarkEmailRead, Color.Secondary),
+@*#endif*@
     ];
 
     private static readonly DashboardTask[] Tasks =
@@ -158,7 +160,9 @@
     private static readonly DashboardActivity[] Activity =
     [
         new("Migration service completed", "Schema and seed data are owned by the dedicated migration worker.", Color.Success),
+@*#if (includeSmtp4dev)*@
         new("Email capture configured", "smtp4dev is wired through system configuration in Development.", Color.Info),
+@*#endif*@
         new("Admin module enabled", "Role and permission policies protect administrative pages.", Color.Primary),
         new("Template polish applied", "Workspace, navigation, README, CI, and screenshot are publication-ready.", Color.Warning),
     ];

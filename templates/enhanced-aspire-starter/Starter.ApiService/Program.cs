@@ -8,7 +8,12 @@ var builder = WebApplication.CreateBuilder(args);
 builder.AddServiceDefaults();
 
 // Register the API-owned catalog database context.
+//#if (usePostgreSql)
 builder.AddNpgsqlDbContext<CatalogDbContext>("starterdb");
+//#endif
+//#if (useSqlServer)
+builder.AddSqlServerDbContext<CatalogDbContext>("starterdb");
+//#endif
 
 // Add services to the container.
 builder.Services.AddProblemDetails();

@@ -8,7 +8,7 @@
             <MudText Typo="Typo.overline" Class="starter-kicker">Aspire Admin Starter foundation</MudText>
             <MudText Typo="Typo.h3" HtmlTag="h1" Class="starter-title">Starter Workspace</MudText>
             <MudText Typo="Typo.body1" Class="starter-lead">
-                A ready-to-run .NET Aspire baseline with identity, admin modules, PostgreSQL, Redis, email capture, shared DTOs, migrations, and catalog CRUD.
+                A ready-to-run .NET Aspire baseline with identity, admin modules, a database provider, Redis, email capture, shared DTOs, migrations, and catalog CRUD.
             </MudText>
             <MudStack Row="true" Spacing="2" Class="starter-actions">
                 <MudButton Href="/admin" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.AdminPanelSettings">
@@ -67,7 +67,7 @@
                     </MudAvatar>
                     <MudText Typo="Typo.h6">Data path included</MudText>
                     <MudText Typo="Typo.body2" Class="starter-muted">
-                        The migration service owns schema setup and seed data while API and Web share PostgreSQL through Aspire service discovery.
+                        The migration service owns schema setup and seed data while API and Web share the selected database through Aspire service discovery.
                     </MudText>
                     <MudButton Href="/dev/catalog" Variant="Variant.Text" Color="Color.Primary" StartIcon="@Icons.Material.Filled.DataObject">
                         Inspect Catalog
@@ -75,6 +75,7 @@
                 </MudStack>
             </MudPaper>
         </MudItem>
+@*#if (includeSmtp4dev)*@
         <MudItem xs="12" md="4">
             <MudPaper Class="pa-4 starter-card" Outlined="true">
                 <MudStack Spacing="2">
@@ -91,6 +92,7 @@
                 </MudStack>
             </MudPaper>
         </MudItem>
+@*#endif*@
     </MudGrid>
 
     <MudGrid Spacing="3">
@@ -132,13 +134,17 @@
 @code {
     private static readonly LocalService[] LocalServices =
     [
+@*#if (includePgAdminForPostgreSql)*@
         new("pgAdmin", "PostgreSQL dashboard", "http://localhost:5050", Icons.Material.Filled.Storage),
+@*#endif*@
+@*#if (includeSmtp4dev)*@
         new("smtp4dev", "Captured outbound email", "http://localhost:5080", Icons.Material.Filled.MarkEmailRead),
+@*#endif*@
     ];
 
     private static readonly ChecklistItem[] Checklist =
     [
-        new("Run the full stack", "Use Aspire AppHost to start PostgreSQL, Redis, pgAdmin, smtp4dev, API, Web, and migrations together."),
+        new("Run the full stack", "Use Aspire AppHost to start the database, Redis, optional local tools, API, Web, and migrations together."),
         new("Tune system settings", "Use Admin/System to configure self registration, email confirmation, public URL, and SMTP delivery."),
         new("Replace demo slices", "Use the Catalog CRUD module as the pattern for shared DTOs, Minimal API endpoints, Blazor pages, and migrations."),
         new("Keep CI green", "The GitHub workflow builds the solution and runs the Aspire integration smoke test."),

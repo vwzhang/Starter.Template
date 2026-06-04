@@ -1,7 +1,7 @@
 param(
     [string] $TemplateSource = (Join-Path $PSScriptRoot "..\templates\enhanced-aspire-starter"),
     [string] $OutputDirectory = (Join-Path $PSScriptRoot "..\artifacts\vsix"),
-    [string] $Version = "0.1.14",
+    [string] $Version = "0.1.15",
     [string] $Publisher = "vwzhang"
 )
 
@@ -42,8 +42,20 @@ function Write-Utf8NoBom([string] $Path, [string] $Content) {
 
 function Convert-DotNetTemplateConditionDirectives([string] $Content) {
     $content = $Content -replace '(?m)^[ \t]*//#if \(includeSmtp4dev\)\s*$', '$if$ ($ext_aspireadmin_includesmtp4dev$ == True)'
-    $content = $content -replace '(?m)^[ \t]*//#if \(includePgAdmin\)\s*$', '$if$ ($ext_aspireadmin_includepgadmin$ == True)'
+    $content = $content -replace '(?m)^[ \t]*//#if \(includePgAdminForPostgreSql\)\s*$', '$if$ ($ext_aspireadmin_includepgadminforpostgresql$ == True)'
+    $content = $content -replace '(?m)^[ \t]*//#if \(usePostgreSql\)\s*$', '$if$ ($ext_aspireadmin_usepostgresql$ == True)'
+    $content = $content -replace '(?m)^[ \t]*//#if \(useSqlServer\)\s*$', '$if$ ($ext_aspireadmin_usesqlserver$ == True)'
+    $content = $content -replace '(?m)^[ \t]*<!--#if \(includeSmtp4dev\)\s*-->\s*$', '$if$ ($ext_aspireadmin_includesmtp4dev$ == True)'
+    $content = $content -replace '(?m)^[ \t]*<!--#if \(includePgAdminForPostgreSql\)\s*-->\s*$', '$if$ ($ext_aspireadmin_includepgadminforpostgresql$ == True)'
+    $content = $content -replace '(?m)^[ \t]*<!--#if \(usePostgreSql\)\s*-->\s*$', '$if$ ($ext_aspireadmin_usepostgresql$ == True)'
+    $content = $content -replace '(?m)^[ \t]*<!--#if \(useSqlServer\)\s*-->\s*$', '$if$ ($ext_aspireadmin_usesqlserver$ == True)'
+    $content = $content -replace '(?m)^[ \t]*@\*#if \(includeSmtp4dev\)\*@\s*$', '$if$ ($ext_aspireadmin_includesmtp4dev$ == True)'
+    $content = $content -replace '(?m)^[ \t]*@\*#if \(includePgAdminForPostgreSql\)\*@\s*$', '$if$ ($ext_aspireadmin_includepgadminforpostgresql$ == True)'
+    $content = $content -replace '(?m)^[ \t]*@\*#if \(usePostgreSql\)\*@\s*$', '$if$ ($ext_aspireadmin_usepostgresql$ == True)'
+    $content = $content -replace '(?m)^[ \t]*@\*#if \(useSqlServer\)\*@\s*$', '$if$ ($ext_aspireadmin_usesqlserver$ == True)'
     $content = $content -replace '(?m)^[ \t]*//#endif\s*$', '$endif$'
+    $content = $content -replace '(?m)^[ \t]*<!--#endif\s*-->\s*$', '$endif$'
+    $content = $content -replace '(?m)^[ \t]*@\*#endif\*@\s*$', '$endif$'
     $content = $content -replace '(?m)^[ \t]*@\*#(if|elseif|else|endif).*?\*@\s*(\r?\n)?', ''
     $content -replace '(?m)^[ \t]*<!--#(if|elseif|else|endif).*?-->\s*(\r?\n)?', ''
 }
@@ -155,6 +167,8 @@ namespace AspireAdminStarter.VisualStudio
 {
     public sealed class AspireAdminStarterWizard : IWizard
     {
+        private bool useSqlServer;
+
         public void RunStarted(
             object automationObject,
             Dictionary<string, string> replacementsDictionary,
@@ -174,8 +188,13 @@ namespace AspireAdminStarter.VisualStudio
                     throw new WizardCancelledException("Aspire Admin Starter creation was canceled.");
                 }
 
+                useSqlServer = form.UseSqlServer;
+                SetReplacement(replacementsDictionary, "$aspireadmin_databaseprovider$", form.DatabaseProvider);
+                SetReplacement(replacementsDictionary, "$aspireadmin_usepostgresql$", ToTemplateBoolean(form.UsePostgreSql));
+                SetReplacement(replacementsDictionary, "$aspireadmin_usesqlserver$", ToTemplateBoolean(form.UseSqlServer));
                 SetReplacement(replacementsDictionary, "$aspireadmin_databasename$", form.DatabaseName);
                 SetReplacement(replacementsDictionary, "$aspireadmin_includepgadmin$", ToTemplateBoolean(form.IncludePgAdmin));
+                SetReplacement(replacementsDictionary, "$aspireadmin_includepgadminforpostgresql$", ToTemplateBoolean(form.IncludePgAdminForPostgreSql));
                 SetReplacement(replacementsDictionary, "$aspireadmin_includesmtp4dev$", ToTemplateBoolean(form.IncludeSmtp4dev));
                 SetReplacement(replacementsDictionary, "$aspireadmin_seedcatalogsampledatavalue$", form.SeedSampleData ? "true" : "false");
                 SetReplacement(replacementsDictionary, "$aspireadmin_seeddevelopmenttestusersvalue$", form.SeedUsers ? "true" : "false");
@@ -192,6 +211,18 @@ namespace AspireAdminStarter.VisualStudio
 
         public bool ShouldAddProjectItem(string filePath)
         {
+            var normalizedPath = (filePath ?? string.Empty).Replace('/', '\\');
+
+            if (normalizedPath.IndexOf("\\Migrations.SqlServer\\", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return useSqlServer;
+            }
+
+            if (useSqlServer && normalizedPath.IndexOf("\\Migrations\\", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return false;
+            }
+
             return true;
         }
 
@@ -268,6 +299,7 @@ namespace AspireAdminStarter.VisualStudio
 
     internal sealed class OptionsForm : Form
     {
+        private readonly ComboBox databaseProviderComboBox;
         private readonly TextBox databaseNameTextBox;
         private readonly CheckBox includePgAdminCheckBox;
         private readonly CheckBox includeSmtp4devCheckBox;
@@ -282,7 +314,7 @@ namespace AspireAdminStarter.VisualStudio
             MinimizeBox = false;
             MaximizeBox = false;
             ShowInTaskbar = false;
-            ClientSize = new Size(540, 370);
+            ClientSize = new Size(560, 430);
             Font = SystemFonts.MessageBoxFont;
 
             var titleLabel = new Label
@@ -298,21 +330,39 @@ namespace AspireAdminStarter.VisualStudio
                 Text = "These options match the dotnet new template switches and are applied to the generated Aspire solution.",
                 AutoSize = false,
                 Location = new Point(20, 50),
-                Size = new Size(500, 38)
+                Size = new Size(520, 38)
             };
+
+            var databaseProviderLabel = new Label
+            {
+                Text = "Database provider",
+                AutoSize = true,
+                Location = new Point(20, 100)
+            };
+
+            databaseProviderComboBox = new ComboBox
+            {
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                Location = new Point(20, 122),
+                Size = new Size(520, 23)
+            };
+            databaseProviderComboBox.Items.Add("PostgreSQL");
+            databaseProviderComboBox.Items.Add("SQL Server");
+            databaseProviderComboBox.SelectedIndex = 0;
+            databaseProviderComboBox.SelectedIndexChanged += delegate { UpdateProviderOptions(); };
 
             var databaseNameLabel = new Label
             {
                 Text = "Database name",
                 AutoSize = true,
-                Location = new Point(20, 100)
+                Location = new Point(20, 158)
             };
 
             databaseNameTextBox = new TextBox
             {
                 Text = defaultDatabaseName,
-                Location = new Point(20, 122),
-                Size = new Size(500, 23),
+                Location = new Point(20, 180),
+                Size = new Size(520, 23),
                 BorderStyle = BorderStyle.FixedSingle
             };
 
@@ -321,7 +371,7 @@ namespace AspireAdminStarter.VisualStudio
                 Text = "Include pgAdmin",
                 Checked = true,
                 AutoSize = true,
-                Location = new Point(20, 164)
+                Location = new Point(20, 222)
             };
 
             includeSmtp4devCheckBox = new CheckBox
@@ -329,7 +379,7 @@ namespace AspireAdminStarter.VisualStudio
                 Text = "Include smtp4dev local email capture",
                 Checked = true,
                 AutoSize = true,
-                Location = new Point(20, 194)
+                Location = new Point(20, 252)
             };
 
             seedUsersCheckBox = new CheckBox
@@ -337,7 +387,7 @@ namespace AspireAdminStarter.VisualStudio
                 Text = "Seed admin, manager, and user test accounts",
                 Checked = true,
                 AutoSize = true,
-                Location = new Point(20, 224)
+                Location = new Point(20, 282)
             };
 
             seedSampleDataCheckBox = new CheckBox
@@ -345,20 +395,20 @@ namespace AspireAdminStarter.VisualStudio
                 Text = "Seed catalog sample data",
                 Checked = true,
                 AutoSize = true,
-                Location = new Point(20, 254)
+                Location = new Point(20, 312)
             };
 
             var separator = new Panel
             {
-                Location = new Point(20, 308),
-                Size = new Size(500, 1)
+                Location = new Point(20, 366),
+                Size = new Size(520, 1)
             };
 
             var okButton = new Button
             {
                 Text = "Create",
                 DialogResult = DialogResult.OK,
-                Location = new Point(340, 326),
+                Location = new Point(360, 384),
                 Size = new Size(82, 28)
             };
             okButton.Click += ValidateAndClose;
@@ -367,7 +417,7 @@ namespace AspireAdminStarter.VisualStudio
             {
                 Text = "Cancel",
                 DialogResult = DialogResult.Cancel,
-                Location = new Point(438, 326),
+                Location = new Point(458, 384),
                 Size = new Size(82, 28)
             };
 
@@ -375,6 +425,8 @@ namespace AspireAdminStarter.VisualStudio
             {
                 titleLabel,
                 descriptionLabel,
+                databaseProviderLabel,
+                databaseProviderComboBox,
                 databaseNameLabel,
                 databaseNameTextBox,
                 includePgAdminCheckBox,
@@ -388,7 +440,23 @@ namespace AspireAdminStarter.VisualStudio
 
             AcceptButton = okButton;
             CancelButton = cancelButton;
+            UpdateProviderOptions();
             ApplyVisualStudioTheme(separator, okButton, cancelButton);
+        }
+
+        public string DatabaseProvider
+        {
+            get { return UseSqlServer ? "SqlServer" : "PostgreSql"; }
+        }
+
+        public bool UsePostgreSql
+        {
+            get { return databaseProviderComboBox.SelectedIndex != 1; }
+        }
+
+        public bool UseSqlServer
+        {
+            get { return databaseProviderComboBox.SelectedIndex == 1; }
         }
 
         public string DatabaseName
@@ -399,6 +467,11 @@ namespace AspireAdminStarter.VisualStudio
         public bool IncludePgAdmin
         {
             get { return includePgAdminCheckBox.Checked; }
+        }
+
+        public bool IncludePgAdminForPostgreSql
+        {
+            get { return UsePostgreSql && IncludePgAdmin; }
         }
 
         public bool IncludeSmtp4dev
@@ -461,6 +534,8 @@ namespace AspireAdminStarter.VisualStudio
 
             databaseNameTextBox.BackColor = theme.InputBackground;
             databaseNameTextBox.ForeColor = theme.InputText;
+            databaseProviderComboBox.BackColor = theme.InputBackground;
+            databaseProviderComboBox.ForeColor = theme.InputText;
 
             separator.BackColor = theme.Border;
 
@@ -497,6 +572,18 @@ namespace AspireAdminStarter.VisualStudio
             button.FlatAppearance.BorderColor = theme.ButtonBorder;
             button.FlatAppearance.MouseOverBackColor = theme.ButtonHoverBackground;
             button.FlatAppearance.MouseDownBackColor = theme.ButtonPressedBackground;
+        }
+
+        private void UpdateProviderOptions()
+        {
+            if (UseSqlServer)
+            {
+                includePgAdminCheckBox.Checked = false;
+                includePgAdminCheckBox.Enabled = false;
+                return;
+            }
+
+            includePgAdminCheckBox.Enabled = true;
         }
     }
 
@@ -858,7 +945,7 @@ function Write-RootTemplate([string] $Path) {
 <VSTemplate Version="3.0.0" Type="ProjectGroup" xmlns="http://schemas.microsoft.com/developer/vstemplate/2005">
   <TemplateData>
     <Name>Aspire Admin Starter</Name>
-    <Description>Opinionated .NET Aspire admin starter with Blazor, Identity, PostgreSQL, Redis, pgAdmin, smtp4dev, migrations, admin modules, system settings, and a CRUD sample.</Description>
+    <Description>Opinionated .NET Aspire admin starter with Blazor, Identity, PostgreSQL or SQL Server, Redis, pgAdmin, smtp4dev, migrations, admin modules, system settings, and a CRUD sample.</Description>
     <ProjectType>CSharp</ProjectType>
     <LanguageTag>csharp</LanguageTag>
     <PlatformTag>windows</PlatformTag>
@@ -904,11 +991,11 @@ function Write-VsixManifest([string] $Path, [string] $Version, [string] $Publish
   <Metadata>
     <Identity Id="Vwzhang.EnhancedAspireStarter.VisualStudio" Version="$Version" Language="en-US" Publisher="$Publisher" />
     <DisplayName>Aspire Admin Starter</DisplayName>
-    <Description xml:space="preserve">Visual Studio project template for an Aspire admin starter with Blazor, Identity, PostgreSQL, Redis, pgAdmin, smtp4dev, migrations, admin modules, system settings, and a CRUD sample.</Description>
+    <Description xml:space="preserve">Visual Studio project template for an Aspire admin starter with Blazor, Identity, PostgreSQL or SQL Server, Redis, pgAdmin, smtp4dev, migrations, admin modules, system settings, and a CRUD sample.</Description>
     <MoreInfo>https://github.com/vwzhang/Starter.Template</MoreInfo>
     <License>Resources\LICENSE.txt</License>
     <ReleaseNotes>Resources\ReleaseNotes.txt</ReleaseNotes>
-    <Tags>Aspire; .NET; Blazor; ASP.NET Core; Identity; PostgreSQL; Redis; pgAdmin; smtp4dev; Admin; Project Template</Tags>
+    <Tags>Aspire; .NET; Blazor; ASP.NET Core; Identity; PostgreSQL; SQL Server; Redis; pgAdmin; smtp4dev; Admin; Project Template</Tags>
   </Metadata>
   <Installation>
     <InstallationTarget Id="Microsoft.VisualStudio.Community" Version="[17.0,19.0)">
@@ -1017,8 +1104,8 @@ Convert-ToTemplateTokenizedFiles $templateRoot
 Write-RootTemplate (Join-Path $templateRoot "EnhancedAspireStarter.vstemplate")
 
 $projectDescriptions = @{
-    "Starter.ApiService" = "Minimal API backend with shared DTOs and PostgreSQL integration."
-    "Starter.AppHost" = "Aspire AppHost that orchestrates PostgreSQL, Redis, pgAdmin, smtp4dev, API, migrations, and Blazor."
+    "Starter.ApiService" = "Minimal API backend with shared DTOs and selected database provider integration."
+    "Starter.AppHost" = "Aspire AppHost that orchestrates PostgreSQL or SQL Server, Redis, pgAdmin, smtp4dev, API, migrations, and Blazor."
     "Starter.MigrationService" = "Worker service that applies EF Core migrations and seed data."
     "Starter.ServiceDefaults" = "Shared Aspire service defaults for health checks, telemetry, service discovery, and resilience."
     "Starter.Shared" = "DTO project shared by API and Blazor frontend."

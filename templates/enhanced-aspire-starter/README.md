@@ -3,29 +3,29 @@
 ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4)
 ![Aspire](https://img.shields.io/badge/Aspire-13.4-5C2D91)
 ![Blazor](https://img.shields.io/badge/UI-Blazor%20%2B%20MudBlazor-594AE2)
-![PostgreSQL](https://img.shields.io/badge/Data-PostgreSQL%2018-336791)
+![Database](https://img.shields.io/badge/Data-PostgreSQL%20or%20SQL%20Server-336791)
 ![Identity](https://img.shields.io/badge/Auth-ASP.NET%20Core%20Identity-0E7C7B)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-A polished .NET 10 Aspire admin starter for internal tools, admin portals, and full-stack business apps. It gives you the infrastructure most projects need on day one: authentication, role-based admin pages, runtime settings, PostgreSQL, Redis, local email capture, migrations, a Minimal API, a Blazor frontend, shared DTOs, and a real database-backed CRUD slice.
+A polished .NET 10 Aspire admin starter for internal tools, admin portals, and full-stack business apps. It gives you the infrastructure most projects need on day one: authentication, role-based admin pages, runtime settings, a database provider, Redis, optional local email capture, migrations, a Minimal API, a Blazor frontend, shared DTOs, and a real database-backed CRUD slice.
 
 ![Starter Workspace](docs/assets/workspace.png)
 
 ## Why This App
 
-This application was generated from an enhanced Aspire template. It includes the foundation most teams add early: identity, roles, admin pages, runtime settings, PostgreSQL, Redis, migrations, local email capture, typed DTOs, a Minimal API, a Blazor frontend, and an integration test that starts the distributed app.
+This application was generated from an enhanced Aspire template. It includes the foundation most teams add early: identity, roles, admin pages, runtime settings, a database provider, Redis, migrations, optional local email capture, typed DTOs, a Minimal API, a Blazor frontend, and an integration test that starts the distributed app.
 
-Template version: `0.1.14`. The same value is available in `Starter.Shared.TemplateInfo.Version`.
+Template version: `0.1.15`. The same value is available in `Starter.Shared.TemplateInfo.Version`.
 
 | What you need | Already included |
 | --- | --- |
-| Local orchestration | Aspire AppHost with PostgreSQL 18, Redis, pgAdmin, smtp4dev, API, Web, and migration service |
+| Local orchestration | Aspire AppHost with PostgreSQL or SQL Server, Redis, optional local tools, API, Web, and migration service |
 | Authentication | ASP.NET Core Identity, seeded test accounts, self registration, email confirmation, forgot/reset password |
 | Authorization | Admin roles, permissions, feature flags, policy-protected admin pages |
 | Admin UI | Dashboard, users, roles, permissions, features, and system configuration |
 | Configuration | Runtime settings stored in the database, including SMTP and account-flow options |
 | Data path | EF Core migrations, API-owned catalog schema, shared DTOs, Blazor CRUD UI |
-| Developer loop | Local email inbox, pgAdmin, Redis output cache, Aspire dashboard, smoke test |
+| Developer loop | Optional local tool UIs, Redis output cache, Aspire dashboard, smoke test |
 
 ## Five-Minute Start
 
@@ -54,8 +54,8 @@ Useful local URLs:
 | Workspace dashboard | `https://localhost:7131/` |
 | Admin login | `https://localhost:7131/admin/login` |
 | Catalog CRUD sample | `https://localhost:7131/dev/catalog` |
-| pgAdmin | `http://localhost:5050` |
-| smtp4dev inbox | `http://localhost:5080` |
+| pgAdmin | `http://localhost:5050` when PostgreSQL pgAdmin is enabled |
+| smtp4dev inbox | `http://localhost:5080` when local email capture is enabled |
 | Aspire dashboard | Printed by `aspire start` |
 
 If a port changes, ask Aspire:
@@ -84,17 +84,16 @@ flowchart LR
     AppHost --> Api["Starter.ApiService<br/>Minimal API"]
     AppHost --> Migrations["Starter.MigrationService"]
     AppHost --> Redis["Redis cache"]
-    AppHost --> Postgres["PostgreSQL 18<br/>Identity, settings, catalog"]
-    AppHost --> PgAdmin["pgAdmin"]
-    AppHost --> Smtp["smtp4dev"]
+    AppHost --> Database["Selected database<br/>Identity, settings, catalog"]
+    AppHost --> Tools["Optional local tools<br/>pgAdmin, smtp4dev"]
 
     Web --> Shared["Starter.Shared DTOs"]
     Api --> Shared
-    Web --> Postgres
-    Api --> Postgres
-    Migrations --> Postgres
+    Web --> Database
+    Api --> Database
+    Migrations --> Database
     Web --> Redis
-    Web --> Smtp
+    Web --> Tools
 ```
 
 The application is intentionally split the way a real Aspire app usually grows:
@@ -134,12 +133,12 @@ Secret values are protected with ASP.NET Core Data Protection before they are st
 
 ## Local Email
 
-The default AppHost runs smtp4dev, so account email flows work without an external SMTP server.
+When smtp4dev is enabled, account email flows work locally without an external SMTP server.
 
 Development defaults:
 
 - Email delivery enabled
-- SMTP host and port supplied by the Aspire smtp4dev resource
+- SMTP host and port can be supplied by the Aspire smtp4dev resource
 - SMTP SSL disabled
 - SMTP username/password blank
 - From address `no-reply@starter.local`
@@ -226,7 +225,7 @@ dotnet ef migrations add MigrationName --project Starter.ApiService/Starter.ApiS
 Development is intentionally convenient:
 
 - Self registration enabled
-- Email delivery enabled through smtp4dev
+- Optional local email capture through smtp4dev
 - Password reset links can be displayed on screen
 - Email confirmation links can be displayed on screen when confirmation is enabled
 - Seeded users available with a simple shared password
@@ -241,7 +240,7 @@ Before production, set real SMTP settings, change seed credentials, choose your 
 
 ## Search Keywords
 
-`dotnet aspire starter`, `aspire template`, `blazor admin starter`, `aspnet core identity`, `mudblazor dashboard`, `postgresql aspire`, `minimal api starter`, `smtp4dev`, `ef core migrations`, `redis output cache`.
+`dotnet aspire starter`, `aspire template`, `blazor admin starter`, `aspnet core identity`, `mudblazor dashboard`, `database-backed aspire`, `minimal api starter`, `smtp4dev`, `ef core migrations`, `redis output cache`.
 
 ## License
 

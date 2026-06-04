@@ -26,7 +26,12 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     var connectionString = builder.Configuration.GetConnectionString("starterdb")
         ?? throw new InvalidOperationException("Connection string 'starterdb' was not found.");
 
+//#if (usePostgreSql)
     options.UseNpgsql(connectionString);
+//#endif
+//#if (useSqlServer)
+    options.UseSqlServer(connectionString);
+//#endif
 });
 builder.Services.AddIdentity<ApplicationUser, ApplicationRole>(options =>
     {

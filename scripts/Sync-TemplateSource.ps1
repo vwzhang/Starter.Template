@@ -1,7 +1,7 @@
 param(
     [string] $SourceRepository = "C:\Aspire\Starter",
     [string] $TemplateContent = "C:\Aspire\Starter.Template\templates\enhanced-aspire-starter",
-    [string] $TemplateVersion = "0.1.13"
+    [string] $TemplateVersion = "0.1.15"
 )
 
 $ErrorActionPreference = "Stop"
@@ -47,12 +47,12 @@ if (Test-Path -LiteralPath $readmePath) {
     $readme = $readme.Replace("[![CI](https://github.com/vwzhang/Starter/actions/workflows/ci.yml/badge.svg)](https://github.com/vwzhang/Starter/actions/workflows/ci.yml)`n", "")
     $readme = $readme.Replace(
         "A polished .NET 10 Aspire starter for internal tools, admin portals, and full-stack business apps. It gives you the infrastructure most projects need on day one: authentication, role-based admin pages, runtime settings, PostgreSQL, Redis, local email capture, migrations, a Minimal API, a Blazor frontend, shared DTOs, and a real database-backed CRUD slice.",
-        "A polished .NET 10 Aspire app foundation for internal tools, admin portals, and full-stack business apps. It includes the infrastructure most projects need on day one: authentication, role-based admin pages, runtime settings, PostgreSQL, Redis, local email capture, migrations, a Minimal API, a Blazor frontend, shared DTOs, and a real database-backed CRUD slice.")
+        "A polished .NET 10 Aspire app foundation for internal tools, admin portals, and full-stack business apps. It includes the infrastructure most projects need on day one: authentication, role-based admin pages, runtime settings, a database provider, Redis, optional local email capture, migrations, a Minimal API, a Blazor frontend, shared DTOs, and a real database-backed CRUD slice.")
     $readme = $readme.Replace("![Starter Workspace](docs/assets/starter-workspace.png)", "![Starter Workspace](docs/assets/workspace.png)")
     $readme = $readme.Replace("## Why Use This", "## Why This App")
     $readme = $readme.Replace(
         "Starting from a blank Aspire template is clean, but the first useful admin app usually needs the same foundation again and again. Aspire Admin Starter packages that foundation into a working application you can run, inspect, rename, and extend.",
-        "This application was generated from an enhanced Aspire template. It includes the foundation most teams add early: identity, roles, admin pages, runtime settings, PostgreSQL, Redis, migrations, local email capture, typed DTOs, a Minimal API, a Blazor frontend, and an integration test that starts the distributed app.")
+        "This application was generated from an enhanced Aspire template. It includes the foundation most teams add early: identity, roles, admin pages, runtime settings, a database provider, Redis, migrations, optional local email capture, typed DTOs, a Minimal API, a Blazor frontend, and an integration test that starts the distributed app.")
     $readme = $readme.Replace(
         "The migration service seeds local users in Development when ``--seed-users`` is enabled:",
         "The migration service seeds local users in Development when test user seeding is enabled:")
@@ -79,7 +79,7 @@ aspire start --apphost Starter.AppHost/Starter.AppHost.csproj
         $readme = [regex]::Replace($readme, $versionPattern, $versionLine)
     }
     else {
-        $generatedParagraph = "This application was generated from an enhanced Aspire template. It includes the foundation most teams add early: identity, roles, admin pages, runtime settings, PostgreSQL, Redis, migrations, local email capture, typed DTOs, a Minimal API, a Blazor frontend, and an integration test that starts the distributed app."
+        $generatedParagraph = "This application was generated from an enhanced Aspire template. It includes the foundation most teams add early: identity, roles, admin pages, runtime settings, a database provider, Redis, migrations, optional local email capture, typed DTOs, a Minimal API, a Blazor frontend, and an integration test that starts the distributed app."
         $readme = $readme.Replace($generatedParagraph, "$generatedParagraph`r`n`r`n$versionLine")
     }
 
@@ -101,5 +101,7 @@ public static class TemplateInfo
 
     [System.IO.File]::WriteAllText($templateInfoPath, $templateInfo + "`n", [System.Text.UTF8Encoding]::new($false))
 }
+
+& (Join-Path $PSScriptRoot "Apply-DatabaseProviderTemplateSupport.ps1") -TemplateContent $TemplateContent
 
 Write-Host "Template source synchronized from $SourceRepository to $TemplateContent"

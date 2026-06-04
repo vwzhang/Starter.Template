@@ -16,18 +16,19 @@ var smtp4dev = builder.AddContainer("smtp4dev", "rnwood/smtp4dev")
 var smtpEndpoint = smtp4dev.GetEndpoint("smtp");
 //#endif
 
-//#if (includePgAdmin)
+//#if (includePgAdminForPostgreSql)
 const string PgAdminImageTag = "9.14.0";
 const string PgAdminDefaultEmail = "admin@domain.com";
 const string PgAdminDefaultPassword = "Happy1..";
 //#endif
 
+//#if (usePostgreSql)
 // PostgreSQL 18 server with a persistent data volume.
 var postgres = builder.AddPostgres("postgres")
     .WithImageTag("18")
     .WithDataVolume();
 
-//#if (includePgAdmin)
+//#if (includePgAdminForPostgreSql)
 postgres.WithPgAdmin(pgAdmin =>
 {
     pgAdmin
@@ -49,8 +50,18 @@ postgres.WithPgAdmin(pgAdmin =>
 }, "pgadmin");
 //#endif
 
-// Shared "starter" database consumed by both the API service and the web frontend.
+// Shared "starter" database consumed by the API service and web frontend.
 var starterDb = postgres.AddDatabase("starterdb");
+//#endif
+
+//#if (useSqlServer)
+// SQL Server container with a persistent data volume.
+var sqlServer = builder.AddSqlServer("sqlserver")
+    .WithDataVolume();
+
+// Shared "starter" database consumed by the API service and web frontend.
+var starterDb = sqlServer.AddDatabase("starterdb");
+//#endif
 
 var migrations = builder.AddProject<Projects.Starter_MigrationService>("migrations")
     .WithReference(starterDb)

@@ -4,7 +4,7 @@ This folder builds a Visual Studio Marketplace package for the Aspire Admin Star
 
 The NuGet `dotnet new` package remains the primary template source. The VSIX build script converts the synchronized template source into a Visual Studio multi-project `.vstemplate` package and wraps it in a VSIX.
 
-The VSIX shows an options page after Create with the same major options as the `dotnet new` package: database name, pgAdmin, smtp4dev, seed users, and seed sample data.
+The VSIX shows an options page after Create with the same major options as the `dotnet new` package: database provider, database name, pgAdmin, smtp4dev, seed users, and seed sample data.
 
 ## Build
 
@@ -17,10 +17,12 @@ Requires Visual Studio with the Visual Studio extension development workload.
 Output:
 
 ```text
-artifacts\vsix\EnhancedAspireStarter.VisualStudio.0.1.14.vsix
+artifacts\vsix\EnhancedAspireStarter.VisualStudio.0.1.15.vsix
 ```
 
 Double-click the VSIX to install it locally. Restart Visual Studio, then search for `Aspire Admin Starter` in the New Project dialog.
+
+The database provider dropdown supports PostgreSQL and SQL Server. Selecting SQL Server disables pgAdmin because pgAdmin only applies to PostgreSQL.
 
 ## Publish
 
@@ -38,7 +40,7 @@ The publish script finds `VsixPublisher.exe` through Visual Studio SDK installat
 After changing the source starter app:
 
 ```powershell
-.\scripts\Update-Template.ps1 -SourceRepository C:\Aspire\Starter -TemplateVersion 0.1.14
+.\scripts\Update-Template.ps1 -SourceRepository C:\Aspire\Starter -TemplateVersion 0.1.15
 ```
 
 Use the generated app's `*.Shared\TemplateInfo.cs` file to confirm which template version Visual Studio used.

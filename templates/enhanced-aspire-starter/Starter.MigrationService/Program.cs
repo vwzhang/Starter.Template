@@ -10,8 +10,14 @@ var builder = Host.CreateApplicationBuilder(args);
 
 builder.AddServiceDefaults();
 
+//#if (usePostgreSql)
 builder.AddNpgsqlDbContext<ApplicationDbContext>("starterdb");
 builder.AddNpgsqlDbContext<CatalogDbContext>("starterdb");
+//#endif
+//#if (useSqlServer)
+builder.AddSqlServerDbContext<ApplicationDbContext>("starterdb");
+builder.AddSqlServerDbContext<CatalogDbContext>("starterdb");
+//#endif
 
 builder.Services.AddDataProtection();
 builder.Services

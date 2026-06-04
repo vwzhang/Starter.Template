@@ -1,6 +1,6 @@
 param(
     [string] $SourceRepository = (Join-Path $PSScriptRoot "..\..\Starter"),
-    [string] $TemplateVersion = "0.1.13",
+    [string] $TemplateVersion = "0.1.15",
     [string] $Configuration = "Release",
     [switch] $SkipSync
 )
@@ -86,7 +86,7 @@ Update-TextFile (Join-Path $templateRoot "README.md") {
     $content = $content.Replace("## Why Use This", "## Why This App")
     $content = $content.Replace(
         "Starting from a blank Aspire template is clean, but the first useful admin app usually needs the same foundation again and again. Aspire Admin Starter packages that foundation into a working application you can run, inspect, rename, and extend.",
-        "This application was generated from an enhanced Aspire template. It includes the foundation most teams add early: identity, roles, admin pages, runtime settings, PostgreSQL, Redis, migrations, local email capture, typed DTOs, a Minimal API, a Blazor frontend, and an integration test that starts the distributed app.")
+        "This application was generated from an enhanced Aspire template. It includes the foundation most teams add early: identity, roles, admin pages, runtime settings, a database provider, Redis, migrations, optional local email capture, typed DTOs, a Minimal API, a Blazor frontend, and an integration test that starts the distributed app.")
     $content = $content.Replace(
         "The migration service seeds local users in Development when ``--seed-users`` is enabled:",
         "The migration service seeds local users in Development when test user seeding is enabled:")
@@ -113,7 +113,7 @@ aspire start --apphost Starter.AppHost/Starter.AppHost.csproj
         return [regex]::Replace($content, $versionPattern, $versionLine)
     }
 
-    $generatedParagraph = "This application was generated from an enhanced Aspire template. It includes the foundation most teams add early: identity, roles, admin pages, runtime settings, PostgreSQL, Redis, migrations, local email capture, typed DTOs, a Minimal API, a Blazor frontend, and an integration test that starts the distributed app."
+    $generatedParagraph = "This application was generated from an enhanced Aspire template. It includes the foundation most teams add early: identity, roles, admin pages, runtime settings, a database provider, Redis, migrations, optional local email capture, typed DTOs, a Minimal API, a Blazor frontend, and an integration test that starts the distributed app."
     $content.Replace($generatedParagraph, "$generatedParagraph`r`n`r`n$versionLine")
 }
 

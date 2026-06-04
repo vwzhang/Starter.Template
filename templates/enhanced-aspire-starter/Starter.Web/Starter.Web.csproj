@@ -20,7 +20,12 @@
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="MudBlazor" Version="9.5.0" />
+    <!--#if (usePostgreSql) -->
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.2" />
+    <!--#endif -->
+    <!--#if (useSqlServer) -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.8" />
+    <!--#endif -->
   </ItemGroup>
 
 </Project>

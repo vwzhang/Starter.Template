@@ -11,6 +11,7 @@
     "Blazor",
     "Admin",
     "PostgreSQL",
+    "SQL Server",
     "Redis",
     "Identity"
   ],
@@ -62,13 +63,44 @@
       "type": "parameter",
       "datatype": "text",
       "defaultValue": "",
-      "description": "PostgreSQL database and connection string name. Defaults to '<project-name>db'."
+      "description": "Database and connection string name. Defaults to '<project-name>db'."
+    },
+    "databaseProvider": {
+      "type": "parameter",
+      "datatype": "choice",
+      "defaultValue": "PostgreSql",
+      "choices": [
+        {
+          "choice": "PostgreSql",
+          "description": "Use PostgreSQL 18 and the Npgsql EF Core provider."
+        },
+        {
+          "choice": "SqlServer",
+          "description": "Use SQL Server and the Microsoft EF Core SQL Server provider."
+        }
+      ],
+      "description": "Database provider used by AppHost, EF Core, migrations, API, and Web."
     },
     "includePgAdmin": {
       "type": "parameter",
       "datatype": "bool",
       "defaultValue": "true",
-      "description": "Include the local pgAdmin container."
+      "description": "Include the local pgAdmin container when databaseProvider is PostgreSql."
+    },
+    "usePostgreSql": {
+      "type": "computed",
+      "value": "(databaseProvider == \"PostgreSql\")",
+      "description": "True when the generated app uses PostgreSQL."
+    },
+    "useSqlServer": {
+      "type": "computed",
+      "value": "(databaseProvider == \"SqlServer\")",
+      "description": "True when the generated app uses SQL Server."
+    },
+    "includePgAdminForPostgreSql": {
+      "type": "computed",
+      "value": "(includePgAdmin && usePostgreSql)",
+      "description": "True when pgAdmin should be included for a PostgreSQL app."
     },
     "includeSmtp4dev": {
       "type": "parameter",
@@ -105,7 +137,7 @@
         "separator": "",
         "removeEmptyValues": true
       },
-      "description": "PostgreSQL database and connection string name."
+      "description": "Database and connection string name."
     },
     "resolvedDatabaseName": {
       "type": "generated",
@@ -135,7 +167,7 @@
         "separator": "",
         "removeEmptyValues": true
       },
-      "description": "C# local variable name for the PostgreSQL database resource."
+      "description": "C# local variable name for the selected database resource."
     },
     "localEmailDomain": {
       "type": "generated",
@@ -219,6 +251,20 @@
       "source": "./",
       "target": "./",
       "modifiers": [
+        {
+          "condition": "(usePostgreSql)",
+          "exclude": [
+            "Starter.Web/Data/Migrations.SqlServer/**",
+            "Starter.ApiService/Data/Migrations.SqlServer/**"
+          ]
+        },
+        {
+          "condition": "(useSqlServer)",
+          "exclude": [
+            "Starter.Web/Data/Migrations/**",
+            "Starter.ApiService/Data/Migrations/**"
+          ]
+        },
         {
           "exclude": [
             ".git/**",
