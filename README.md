@@ -11,7 +11,7 @@ dotnet pack
 ## Install Locally
 
 ```powershell
-dotnet new install .\bin\Release\Vwzhang.EnhancedAspireStarter.Templates.0.1.8.nupkg
+dotnet new install .\bin\Release\Vwzhang.EnhancedAspireStarter.Templates.0.1.9.nupkg
 ```
 
 ## Create A New App
@@ -36,14 +36,14 @@ The generated app includes Blazor, ASP.NET Core Identity, PostgreSQL, Redis, pgA
 .\visualstudio\Build-Vsix.ps1
 ```
 
-This produces `artifacts\vsix\EnhancedAspireStarter.VisualStudio.0.1.8.vsix` for local install or Visual Studio Marketplace upload.
+This produces `artifacts\vsix\EnhancedAspireStarter.VisualStudio.0.1.9.vsix` for local install or Visual Studio Marketplace upload.
 
 ## Template Maintenance
 
 After updating the source starter app, run the release helper from this repository:
 
 ```powershell
-.\scripts\Update-Template.ps1 -SourceRepository C:\Aspire\Starter -TemplateVersion 0.1.6
+.\scripts\Update-Template.ps1 -SourceRepository C:\Aspire\Starter -TemplateVersion 0.1.9
 ```
 
 The helper syncs `templates\enhanced-aspire-starter`, preserves the generated `TemplateInfo.cs` version marker, updates package/VSIX version references, runs `dotnet pack`, and builds the Visual Studio VSIX.
