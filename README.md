@@ -8,7 +8,7 @@
 
 Installable templates for creating a polished .NET 10 Aspire admin application foundation with Blazor, ASP.NET Core Identity, PostgreSQL or SQL Server, Redis, pgAdmin, smtp4dev, a migration service, admin modules, system settings, shared DTOs, and a database-backed CRUD sample.
 
-Use the CLI template when you want scriptable generation. Use the VSIX when you want a Visual Studio New Project experience with the same major options.
+Use the CLI template when you want scriptable generation. Use the VSIX when you want a Visual Studio New Project or Marketplace experience with the same major options. Install one path at a time on a development machine; Visual Studio 2026 can also surface globally installed `dotnet new` templates, so installing both the NuGet template and the VSIX can show two similar `Aspire Admin Starter` entries.
 
 ## What It Creates
 
@@ -46,7 +46,7 @@ Confirm the template is visible:
 dotnet new aspire-admin-starter --help
 ```
 
-Visual Studio 2026 also reads installed `dotnet new` template packages. This is the preferred native Visual Studio path because it uses the `.NET Core Template Provider` and shows the template options from `.template.config\ide.host.json` in the New Project flow.
+Visual Studio 2026 also reads installed `dotnet new` template packages through the `.NET Core Template Provider`. If you are testing the Marketplace VSIX, uninstall this CLI template first so Visual Studio shows only the VSIX entry.
 
 ## Create A New App
 
@@ -118,7 +118,7 @@ When `--seed-users true` is used:
 
 ## Visual Studio VSIX
 
-For Visual Studio 2026, prefer the NuGet template package above. The VSIX remains available for Marketplace-style distribution and compatibility with the older `.vstemplate` provider.
+For Visual Studio and Marketplace distribution, use the VSIX. The CLI NuGet package remains the best path for scripted generation and CI smoke tests.
 
 Build the VSIX directly:
 
@@ -144,7 +144,7 @@ Install it, restart Visual Studio, then search for `Aspire Admin Starter` in the
 
 Selecting SQL Server disables pgAdmin because pgAdmin only applies to PostgreSQL. SQL Server apps run a SQL Server container and can be inspected from SSMS or Azure Data Studio on the host.
 
-If Visual Studio still shows an older template name after installing a newer VSIX, close Visual Studio and run:
+If Visual Studio shows two similar `Aspire Admin Starter` entries, or still shows an older template name after installing a newer VSIX, close Visual Studio and run:
 
 ```powershell
 dotnet new uninstall Vwzhang.AspireAdminStarter.Templates
@@ -152,6 +152,8 @@ dotnet new uninstall Vwzhang.AspireAdminStarter.Templates
 ```
 
 Install the latest VSIX again after the cleanup.
+
+The entry with `(vwzhang)` and the custom icon is normally the global `dotnet new` template. The generic Visual Studio template icon is the VSIX `.vstemplate` entry.
 
 ## Maintainer Workflow
 

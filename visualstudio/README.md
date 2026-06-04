@@ -2,9 +2,9 @@
 
 This folder builds a Visual Studio Marketplace package for the Aspire Admin Starter template.
 
-The NuGet `dotnet new` package remains the primary template source. The VSIX build script converts the synchronized template source into a Visual Studio multi-project `.vstemplate` package and wraps it in a VSIX.
+The VSIX build script converts the synchronized template source into a Visual Studio multi-project `.vstemplate` package and wraps it in a VSIX for Marketplace distribution.
 
-For Visual Studio 2026, prefer installing the NuGet template package with `dotnet new install`. Visual Studio reads installed `dotnet new` templates through the `.NET Core Template Provider` and uses `.template.config\ide.host.json` for the native options UI.
+The NuGet `dotnet new` package remains available for scripted generation. Avoid installing the NuGet template and the VSIX at the same time on the same development machine, because Visual Studio 2026 can surface both providers and show two similar `Aspire Admin Starter` entries.
 
 The VSIX shows an options page after Create with the same major options as the `dotnet new` package: database provider, database name, pgAdmin, smtp4dev, seed users, and seed sample data.
 
@@ -40,14 +40,14 @@ The database provider dropdown supports PostgreSQL and SQL Server. Selecting SQL
 
 After project creation, the wizard cleans provider-specific template blocks and sets the generated AppHost project as the startup project.
 
-If an older template name still appears, close Visual Studio and clear the local VS template cache:
+If two similar template entries appear, or if an older template name still appears, close Visual Studio and clear the local VS template cache:
 
 ```powershell
 dotnet new uninstall Vwzhang.AspireAdminStarter.Templates
 .\visualstudio\Clear-VisualStudioTemplateCache.ps1
 ```
 
-Then install the latest VSIX again and restart Visual Studio. This removes stale per-user VSIX folders and Visual Studio Template Cache entries for this template only. The uninstall command removes older CLI template packages that can appear in Visual Studio without the VSIX options dialog.
+Then install the latest VSIX again and restart Visual Studio. This removes stale per-user VSIX folders and Visual Studio Template Cache entries for this template only. The uninstall command removes CLI template packages that can appear in Visual Studio as a separate `.NET Core Template Provider` entry.
 
 ## Publish
 
