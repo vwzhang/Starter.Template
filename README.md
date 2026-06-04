@@ -31,13 +31,13 @@ dotnet pack
 Current local package:
 
 ```text
-bin\Release\Vwzhang.EnhancedAspireStarter.Templates.0.1.11.nupkg
+bin\Release\Vwzhang.EnhancedAspireStarter.Templates.0.1.12.nupkg
 ```
 
 ## Install Locally
 
 ```powershell
-dotnet new install .\bin\Release\Vwzhang.EnhancedAspireStarter.Templates.0.1.11.nupkg
+dotnet new install .\bin\Release\Vwzhang.EnhancedAspireStarter.Templates.0.1.12.nupkg
 ```
 
 Confirm the template is visible:
@@ -49,11 +49,14 @@ dotnet new enhanced-aspire-starter --help
 ## Create A New App
 
 ```powershell
-dotnet new enhanced-aspire-starter -n AcmeOps -o C:\Code\AcmeOps
+mkdir C:\Code\AcmeOps
 cd C:\Code\AcmeOps
+dotnet new enhanced-aspire-starter -n AcmeOps
 dotnet build AcmeOps.slnx
 aspire start --apphost AcmeOps.AppHost\AcmeOps.AppHost.csproj
 ```
+
+The template writes the solution file and all project folders directly into the current directory. There is no extra solution folder inside `C:\Code\AcmeOps`.
 
 The generated app opens with:
 
@@ -68,7 +71,6 @@ The generated app opens with:
 ```powershell
 dotnet new enhanced-aspire-starter `
   -n AcmeOps `
-  -o C:\Code\AcmeOps `
   --database-name acmeopsdb `
   --include-pgadmin true `
   --include-smtp4dev true `
@@ -87,9 +89,14 @@ dotnet new enhanced-aspire-starter `
 Useful examples:
 
 ```powershell
-dotnet new enhanced-aspire-starter -n BackOffice -o C:\Code\BackOffice --database-name backoffice
-dotnet new enhanced-aspire-starter -n LeanApi -o C:\Code\LeanApi --include-pgadmin false --include-smtp4dev false
-dotnet new enhanced-aspire-starter -n CleanStart -o C:\Code\CleanStart --seed-users false --seed-sample-data false
+mkdir C:\Code\BackOffice; cd C:\Code\BackOffice
+dotnet new enhanced-aspire-starter -n BackOffice --database-name backoffice
+
+mkdir C:\Code\LeanApi; cd C:\Code\LeanApi
+dotnet new enhanced-aspire-starter -n LeanApi --include-pgadmin false --include-smtp4dev false
+
+mkdir C:\Code\CleanStart; cd C:\Code\CleanStart
+dotnet new enhanced-aspire-starter -n CleanStart --seed-users false --seed-sample-data false
 ```
 
 ## Default Test Accounts
@@ -113,7 +120,7 @@ Build the VSIX:
 Output:
 
 ```text
-artifacts\vsix\EnhancedAspireStarter.VisualStudio.0.1.11.vsix
+artifacts\vsix\EnhancedAspireStarter.VisualStudio.0.1.12.vsix
 ```
 
 Install it, restart Visual Studio, then search for `Enhanced Aspire Starter` in the New Project dialog.
@@ -125,7 +132,7 @@ The VSIX currently generates the complete default starter. The CLI package is th
 After changing the source starter app, run:
 
 ```powershell
-.\scripts\Update-Template.ps1 -SourceRepository C:\Aspire\Starter -TemplateVersion 0.1.11
+.\scripts\Update-Template.ps1 -SourceRepository C:\Aspire\Starter -TemplateVersion 0.1.12
 ```
 
 The helper:
@@ -142,10 +149,14 @@ The helper:
 Recommended checks before publishing a new template version:
 
 ```powershell
-dotnet new install .\bin\Release\Vwzhang.EnhancedAspireStarter.Templates.0.1.11.nupkg --force
-dotnet new enhanced-aspire-starter -n SmokeApp -o C:\Temp\SmokeApp --force
+dotnet new install .\bin\Release\Vwzhang.EnhancedAspireStarter.Templates.0.1.12.nupkg --force
+mkdir C:\Temp\SmokeApp
+cd C:\Temp\SmokeApp
+dotnet new enhanced-aspire-starter -n SmokeApp --force
 dotnet build C:\Temp\SmokeApp\SmokeApp.slnx
-dotnet new enhanced-aspire-starter -n SlimApp -o C:\Temp\SlimApp --include-pgadmin false --include-smtp4dev false --seed-users false --seed-sample-data false --force
+mkdir C:\Temp\SlimApp
+cd C:\Temp\SlimApp
+dotnet new enhanced-aspire-starter -n SlimApp --include-pgadmin false --include-smtp4dev false --seed-users false --seed-sample-data false --force
 dotnet build C:\Temp\SlimApp\SlimApp.slnx
 ```
 

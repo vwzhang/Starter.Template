@@ -1,7 +1,7 @@
 param(
     [string] $TemplateSource = (Join-Path $PSScriptRoot "..\templates\enhanced-aspire-starter"),
     [string] $OutputDirectory = (Join-Path $PSScriptRoot "..\artifacts\vsix"),
-    [string] $Version = "0.1.11",
+    [string] $Version = "0.1.12",
     [string] $Publisher = "vwzhang"
 )
 
@@ -360,7 +360,7 @@ function Write-RootTemplate([string] $Path) {
     <ProjectTypeTag>Blazor</ProjectTypeTag>
     <ProjectTypeTag>.NET</ProjectTypeTag>
     <DefaultName>MyAspireStarter</DefaultName>
-    <CreateNewFolder>true</CreateNewFolder>
+    <CreateNewFolder>false</CreateNewFolder>
     <CreateInPlace>true</CreateInPlace>
     <ProvideDefaultName>true</ProvideDefaultName>
     <SortOrder>1000</SortOrder>

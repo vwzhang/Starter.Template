@@ -15,7 +15,7 @@ A polished .NET 10 Aspire app foundation for internal tools, admin portals, and 
 
 This application was generated from an enhanced Aspire template. It includes the foundation most teams add early: identity, roles, admin pages, runtime settings, PostgreSQL, Redis, migrations, local email capture, typed DTOs, a Minimal API, a Blazor frontend, and an integration test that starts the distributed app.
 
-Template version: `0.1.11`. The same value is available in `Starter.Shared.TemplateInfo.Version`.
+Template version: `0.1.12`. The same value is available in `Starter.Shared.TemplateInfo.Version`.
 
 | What you need | Already included |
 | --- | --- |

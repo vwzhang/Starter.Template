@@ -19,7 +19,7 @@
   "groupIdentity": "Vwzhang.EnhancedAspireStarter",
   "shortName": "enhanced-aspire-starter",
   "sourceName": "Starter",
-  "preferNameDirectory": true,
+  "preferNameDirectory": false,
   "tags": {
     "language": "C#",
     "type": "solution"
