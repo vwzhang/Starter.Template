@@ -1,9 +1,84 @@
 {
-  "$schema": "https://json.schemastore.org/ide.host",
-  "unsupportedHosts": [
+  "$schema": "http://json.schemastore.org/vs-2017.3.host",
+  "order": 120,
+  "icon": "icon.png",
+  "symbolInfo": [
     {
-      "id": "vs",
-      "version": "(,99.0)"
+      "id": "authorName",
+      "name": {
+        "text": "Author or organization"
+      },
+      "description": {
+        "text": "Owner name used in generated project metadata and license text."
+      },
+      "isVisible": true,
+      "persistenceScope": "templateGroup"
+    },
+    {
+      "id": "databaseProvider",
+      "name": {
+        "text": "Database provider"
+      },
+      "description": {
+        "text": "Database provider used by AppHost, EF Core, migrations, API, and Web."
+      },
+      "isVisible": true,
+      "persistenceScope": "templateGroup"
+    },
+    {
+      "id": "databaseName",
+      "name": {
+        "text": "Database name"
+      },
+      "description": {
+        "text": "Database and connection string name. Leave blank to use '<project-name>db'."
+      },
+      "isVisible": true,
+      "persistenceScope": "templateGroup"
+    },
+    {
+      "id": "includePgAdmin",
+      "name": {
+        "text": "Include pgAdmin"
+      },
+      "description": {
+        "text": "Include the local pgAdmin container when PostgreSQL is selected."
+      },
+      "isVisible": true,
+      "persistenceScope": "templateGroup"
+    },
+    {
+      "id": "includeSmtp4dev",
+      "name": {
+        "text": "Include smtp4dev"
+      },
+      "description": {
+        "text": "Include the local smtp4dev email capture container."
+      },
+      "isVisible": true,
+      "persistenceScope": "templateGroup"
+    },
+    {
+      "id": "seedUsers",
+      "name": {
+        "text": "Seed test users"
+      },
+      "description": {
+        "text": "Seed development admin, manager, and user accounts."
+      },
+      "isVisible": true,
+      "persistenceScope": "templateGroup"
+    },
+    {
+      "id": "seedSampleData",
+      "name": {
+        "text": "Seed sample catalog data"
+      },
+      "description": {
+        "text": "Seed sample catalog categories and products in Development."
+      },
+      "isVisible": true,
+      "persistenceScope": "templateGroup"
     }
   ]
 }

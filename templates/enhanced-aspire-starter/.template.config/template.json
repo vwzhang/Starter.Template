@@ -72,10 +72,12 @@
       "choices": [
         {
           "choice": "PostgreSql",
+          "displayName": "PostgreSQL",
           "description": "Use PostgreSQL 18 and the Npgsql EF Core provider."
         },
         {
           "choice": "SqlServer",
+          "displayName": "SQL Server",
           "description": "Use SQL Server and the Microsoft EF Core SQL Server provider."
         }
       ],
@@ -85,6 +87,7 @@
       "type": "parameter",
       "datatype": "bool",
       "defaultValue": "true",
+      "isEnabled": "(databaseProvider == \"PostgreSql\")",
       "description": "Include the local pgAdmin container when databaseProvider is PostgreSql."
     },
     "usePostgreSql": {
@@ -119,6 +122,13 @@
       "datatype": "bool",
       "defaultValue": "true",
       "description": "Seed sample catalog categories and products in Development."
+    },
+    "skipRestore": {
+      "type": "parameter",
+      "datatype": "bool",
+      "defaultValue": "false",
+      "defaultIfOptionWithoutValue": "true",
+      "description": "Skip automatic restore after project creation."
     },
     "defaultDatabaseName": {
       "type": "generated",
@@ -290,6 +300,7 @@
   "postActions": [
     {
       "description": "Restore NuGet packages",
+      "condition": "(!skipRestore)",
       "manualInstructions": [
         {
           "text": "Run 'dotnet restore' in the generated solution directory."

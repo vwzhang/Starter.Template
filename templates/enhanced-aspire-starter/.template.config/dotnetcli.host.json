@@ -24,6 +24,10 @@
     "seedSampleData": {
       "longName": "seed-sample-data",
       "shortName": ""
+    },
+    "skipRestore": {
+      "longName": "no-restore",
+      "shortName": ""
     }
   }
 }

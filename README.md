@@ -31,13 +31,13 @@ dotnet pack
 Current local package:
 
 ```text
-bin\Release\Vwzhang.EnhancedAspireStarter.Templates.0.1.22.nupkg
+bin\Release\Vwzhang.EnhancedAspireStarter.Templates.0.1.23.nupkg
 ```
 
 ## Install Locally
 
 ```powershell
-dotnet new install .\bin\Release\Vwzhang.EnhancedAspireStarter.Templates.0.1.22.nupkg
+dotnet new install .\bin\Release\Vwzhang.EnhancedAspireStarter.Templates.0.1.23.nupkg
 ```
 
 Confirm the template is visible:
@@ -45,6 +45,8 @@ Confirm the template is visible:
 ```powershell
 dotnet new enhanced-aspire-starter --help
 ```
+
+Visual Studio 2026 also reads installed `dotnet new` template packages. This is the preferred native Visual Studio path because it uses the `.NET Core Template Provider` and shows the template options from `.template.config\ide.host.json` in the New Project flow.
 
 ## Create A New App
 
@@ -116,6 +118,8 @@ When `--seed-users true` is used:
 
 ## Visual Studio VSIX
 
+For Visual Studio 2026, prefer the NuGet template package above. The VSIX remains available for Marketplace-style distribution and compatibility with the older `.vstemplate` provider.
+
 Build the VSIX directly:
 
 ```powershell
@@ -133,7 +137,7 @@ Pass `/p:VisualStudioVsixVersion=0.1.23` to build a one-off VSIX version.
 Output:
 
 ```text
-artifacts\vsix\EnhancedAspireStarter.VisualStudio.0.1.22.vsix
+artifacts\vsix\EnhancedAspireStarter.VisualStudio.0.1.23.vsix
 ```
 
 Install it, restart Visual Studio, then search for `Enhanced Aspire Starter` in the New Project dialog. After you click Create, the template displays an options page for database provider, database name, pgAdmin, smtp4dev, and seed data.
@@ -154,7 +158,7 @@ Install the latest VSIX again after the cleanup.
 After changing the source starter app, run:
 
 ```powershell
-.\scripts\Update-Template.ps1 -SourceRepository C:\Aspire\Starter -TemplateVersion 0.1.22
+.\scripts\Update-Template.ps1 -SourceRepository C:\Aspire\Starter -TemplateVersion 0.1.23
 ```
 
 The helper:
@@ -171,18 +175,18 @@ The helper:
 Recommended checks before publishing a new template version:
 
 ```powershell
-dotnet new install .\bin\Release\Vwzhang.EnhancedAspireStarter.Templates.0.1.22.nupkg --force
+dotnet new install .\bin\Release\Vwzhang.EnhancedAspireStarter.Templates.0.1.23.nupkg --force
 mkdir C:\Temp\SmokeApp
 cd C:\Temp\SmokeApp
-dotnet new enhanced-aspire-starter -n SmokeApp --force
+dotnet new enhanced-aspire-starter -n SmokeApp --no-restore --force
 dotnet build C:\Temp\SmokeApp\SmokeApp.slnx
 mkdir C:\Temp\SqlSmokeApp
 cd C:\Temp\SqlSmokeApp
-dotnet new enhanced-aspire-starter -n SqlSmokeApp --databaseProvider SqlServer --include-pgadmin false --force
+dotnet new enhanced-aspire-starter -n SqlSmokeApp --databaseProvider SqlServer --include-pgadmin false --no-restore --force
 dotnet build C:\Temp\SqlSmokeApp\SqlSmokeApp.slnx
 mkdir C:\Temp\SlimApp
 cd C:\Temp\SlimApp
-dotnet new enhanced-aspire-starter -n SlimApp --include-pgadmin false --include-smtp4dev false --seed-users false --seed-sample-data false --force
+dotnet new enhanced-aspire-starter -n SlimApp --include-pgadmin false --include-smtp4dev false --seed-users false --seed-sample-data false --no-restore --force
 dotnet build C:\Temp\SlimApp\SlimApp.slnx
 ```
 
