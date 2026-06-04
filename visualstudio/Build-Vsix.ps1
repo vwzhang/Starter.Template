@@ -1,7 +1,7 @@
 param(
     [string] $TemplateSource = (Join-Path $PSScriptRoot "..\templates\enhanced-aspire-starter"),
     [string] $OutputDirectory = (Join-Path $PSScriptRoot "..\artifacts\vsix"),
-    [string] $Version = "0.1.33",
+    [string] $Version = "0.1.34",
     [string] $Publisher = "vwzhang"
 )
 
@@ -1422,7 +1422,7 @@ namespace EnhancedAspireStarter.VisualStudio
             if (options.IncludeSmtp4dev)
             {
                 code.AppendLine("var smtp4dev = builder.AddContainer(\"smtp4dev\", \"rnwood/smtp4dev\")");
-                code.AppendLine("    .WithHttpEndpoint(targetPort: 80, port: 5080)");
+                code.AppendLine("    .WithHttpEndpoint(targetPort: 80)");
                 code.AppendLine("    .WithEndpoint(targetPort: 25, scheme: \"tcp\", name: \"smtp\")");
                 code.AppendLine("    .WithHttpHealthCheck(\"/\");");
                 code.AppendLine();
@@ -1457,7 +1457,7 @@ namespace EnhancedAspireStarter.VisualStudio
                     code.AppendLine("        .WithEnvironment(\"PGADMIN_CONFIG_SERVER_MODE\", \"False\")");
                     code.AppendLine("        .WithEnvironment(\"PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED\", \"False\")");
                     code.AppendLine("        // Bind directly because pgAdmin's gunicorn responses can trip the Aspire proxy health check.");
-                    code.AppendLine("        .WithHttpEndpoint(targetPort: 80, port: 5050, name: \"http\", isProxied: false)");
+                    code.AppendLine("        .WithHttpEndpoint(targetPort: 80, name: \"http\", isProxied: false)");
                     code.AppendLine("        .WaitFor(postgres);");
                     code.AppendLine();
                     code.AppendLine("    foreach (var healthCheck in pgAdmin.Resource.Annotations.OfType<HealthCheckAnnotation>().ToArray())");
@@ -1571,26 +1571,18 @@ namespace EnhancedAspireStarter.VisualStudio
             builder.AppendLine("      \"commandName\": \"Project\",");
             builder.AppendLine("      \"dotnetRunMessages\": true,");
             builder.AppendLine("      \"launchBrowser\": true,");
-            builder.AppendLine("      \"applicationUrl\": \"https://localhost:17083;http://localhost:15252\",");
             builder.AppendLine("      \"environmentVariables\": {");
             builder.AppendLine("        \"ASPNETCORE_ENVIRONMENT\": \"Development\",");
-            builder.AppendLine("        \"DOTNET_ENVIRONMENT\": \"Development\",");
-            builder.AppendLine("        \"ASPIRE_DASHBOARD_OTLP_ENDPOINT_URL\": \"https://localhost:21177\",");
-            builder.AppendLine("        \"ASPIRE_DASHBOARD_MCP_ENDPOINT_URL\": \"https://localhost:23235\",");
-            builder.AppendLine("        \"ASPIRE_RESOURCE_SERVICE_ENDPOINT_URL\": \"https://localhost:22068\"");
+            builder.AppendLine("        \"DOTNET_ENVIRONMENT\": \"Development\"");
             builder.AppendLine("      }");
             builder.AppendLine("    },");
             builder.AppendLine("    \"http\": {");
             builder.AppendLine("      \"commandName\": \"Project\",");
             builder.AppendLine("      \"dotnetRunMessages\": true,");
             builder.AppendLine("      \"launchBrowser\": true,");
-            builder.AppendLine("      \"applicationUrl\": \"http://localhost:15252\",");
             builder.AppendLine("      \"environmentVariables\": {");
             builder.AppendLine("        \"ASPNETCORE_ENVIRONMENT\": \"Development\",");
-            builder.AppendLine("        \"DOTNET_ENVIRONMENT\": \"Development\",");
-            builder.AppendLine("        \"ASPIRE_DASHBOARD_OTLP_ENDPOINT_URL\": \"http://localhost:19167\",");
-            builder.AppendLine("        \"ASPIRE_DASHBOARD_MCP_ENDPOINT_URL\": \"http://localhost:18060\",");
-            builder.AppendLine("        \"ASPIRE_RESOURCE_SERVICE_ENDPOINT_URL\": \"http://localhost:20132\"");
+            builder.AppendLine("        \"DOTNET_ENVIRONMENT\": \"Development\"");
             builder.AppendLine("      }");
             builder.AppendLine("    }");
             builder.AppendLine("  }");

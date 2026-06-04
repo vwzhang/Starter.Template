@@ -91,7 +91,7 @@ postgres.WithPgAdmin(pgAdmin =>
         .WithEnvironment("PGADMIN_CONFIG_SERVER_MODE", "False")
         .WithEnvironment("PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED", "False")
         // Bind directly because pgAdmin's gunicorn responses can trip the Aspire proxy health check.
-        .WithHttpEndpoint(targetPort: 80, port: 5050, name: "http", isProxied: false)
+        .WithHttpEndpoint(targetPort: 80, name: "http", isProxied: false)
         .WaitFor(postgres);
 
     foreach (var healthCheck in pgAdmin.Resource.Annotations.OfType<HealthCheckAnnotation>().ToArray())
@@ -127,7 +127,7 @@ postgres.WithPgAdmin(pgAdmin =>
         .WithEnvironment("PGADMIN_CONFIG_SERVER_MODE", "False")
         .WithEnvironment("PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED", "False")
         // Bind directly because pgAdmin's gunicorn responses can trip the Aspire proxy health check.
-        .WithHttpEndpoint(targetPort: 80, port: 5050, name: "http", isProxied: false)
+        .WithHttpEndpoint(targetPort: 80, name: "http", isProxied: false)
         .WaitFor(postgres);
 
     foreach (var healthCheck in pgAdmin.Resource.Annotations.OfType<HealthCheckAnnotation>().ToArray())
@@ -360,18 +360,18 @@ Replace-Required `
     @'
     private static readonly LocalService[] LocalServices =
     [
-        new("pgAdmin", "PostgreSQL dashboard", "http://localhost:5050", Icons.Material.Filled.Storage),
-        new("smtp4dev", "Captured outbound email", "http://localhost:5080", Icons.Material.Filled.MarkEmailRead),
+        new("pgAdmin", "Endpoint shown in Aspire Dashboard", Icons.Material.Filled.Storage),
+        new("smtp4dev", "Endpoint shown in Aspire Dashboard", Icons.Material.Filled.MarkEmailRead),
     ];
 '@ `
     @'
     private static readonly LocalService[] LocalServices =
     [
 @*#if (includePgAdminForPostgreSql)*@
-        new("pgAdmin", "PostgreSQL dashboard", "http://localhost:5050", Icons.Material.Filled.Storage),
+        new("pgAdmin", "Endpoint shown in Aspire Dashboard", Icons.Material.Filled.Storage),
 @*#endif*@
 @*#if (includeSmtp4dev)*@
-        new("smtp4dev", "Captured outbound email", "http://localhost:5080", Icons.Material.Filled.MarkEmailRead),
+        new("smtp4dev", "Endpoint shown in Aspire Dashboard", Icons.Material.Filled.MarkEmailRead),
 @*#endif*@
     ];
 '@ `
@@ -396,8 +396,8 @@ Replace-Required `
                     <MudText Typo="Typo.body2" Class="starter-muted">
                         smtp4dev captures account emails locally, while Admin/System holds SMTP settings for future production delivery.
                     </MudText>
-                    <MudButton Href="http://localhost:5080" Target="_blank" Variant="Variant.Text" Color="Color.Primary" StartIcon="@Icons.Material.Filled.OpenInNew">
-                        Open inbox
+                    <MudButton Href="/admin" Variant="Variant.Text" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Settings">
+                        Email settings
                     </MudButton>
                 </MudStack>
             </MudPaper>
@@ -415,8 +415,8 @@ Replace-Required `
                     <MudText Typo="Typo.body2" Class="starter-muted">
                         smtp4dev captures account emails locally, while Admin/System holds SMTP settings for future production delivery.
                     </MudText>
-                    <MudButton Href="http://localhost:5080" Target="_blank" Variant="Variant.Text" Color="Color.Primary" StartIcon="@Icons.Material.Filled.OpenInNew">
-                        Open inbox
+                    <MudButton Href="/admin" Variant="Variant.Text" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Settings">
+                        Email settings
                     </MudButton>
                 </MudStack>
             </MudPaper>
@@ -434,10 +434,10 @@ Replace-Required `
 $componentsPath = Join-Path $templateRoot "Starter.Web\Components\Pages\Dev\Components.razor"
 Replace-Required `
     $componentsPath `
-    '        new("smtp4dev", "Local email inbox", "Healthy", "http://localhost:5080", Icons.Material.Filled.MarkEmailRead, Color.Secondary),' `
+    '        new("smtp4dev", "Local email inbox", "Healthy", "Aspire endpoint", Icons.Material.Filled.MarkEmailRead, Color.Secondary),' `
     @'
 @*#if (includeSmtp4dev)*@
-        new("smtp4dev", "Local email inbox", "Healthy", "http://localhost:5080", Icons.Material.Filled.MarkEmailRead, Color.Secondary),
+        new("smtp4dev", "Local email inbox", "Healthy", "Aspire endpoint", Icons.Material.Filled.MarkEmailRead, Color.Secondary),
 @*#endif*@
 '@ `
     "@*#if (includeSmtp4dev)*@`n        new(`"smtp4dev`""
@@ -471,11 +471,11 @@ if (Test-Path -LiteralPath $readmePath) {
         "| Developer loop | Local email inbox, pgAdmin, Redis output cache, Aspire dashboard, smoke test |",
         "| Developer loop | Optional local tool UIs, Redis output cache, Aspire dashboard, smoke test |")
     $readme = $readme.Replace(
-        '| pgAdmin | `http://localhost:5050` |',
-        '| pgAdmin | `http://localhost:5050` when PostgreSQL pgAdmin is enabled |')
+        '| pgAdmin | `pgadmin` endpoint in Aspire Dashboard |',
+        '| pgAdmin | `pgadmin` endpoint in Aspire Dashboard when PostgreSQL pgAdmin is enabled |')
     $readme = $readme.Replace(
-        '| smtp4dev inbox | `http://localhost:5080` |',
-        '| smtp4dev inbox | `http://localhost:5080` when local email capture is enabled |')
+        '| smtp4dev inbox | `smtp4dev` endpoint in Aspire Dashboard |',
+        '| smtp4dev inbox | `smtp4dev` endpoint in Aspire Dashboard when local email capture is enabled |')
     $readme = $readme.Replace(
         "    AppHost --> Postgres[`"PostgreSQL 18<br/>Identity, settings, catalog`"]",
         "    AppHost --> Database[`"Selected database<br/>Identity, settings, catalog`"]")
@@ -497,6 +497,9 @@ if (Test-Path -LiteralPath $readmePath) {
     $readme = $readme.Replace(
         "- Email delivery enabled through smtp4dev",
         "- Optional local email capture through smtp4dev")
+    $readme = $readme.Replace(
+        "Open the `smtp4dev` endpoint from the Aspire Dashboard to inspect captured messages.",
+        "Open the `smtp4dev` endpoint from the Aspire Dashboard when local email capture is enabled to inspect captured messages.")
     $readme = $readme.Replace(
         '`dotnet aspire starter`, `aspire template`, `blazor admin starter`, `aspnet core identity`, `mudblazor dashboard`, `postgresql aspire`, `minimal api starter`, `smtp4dev`, `ef core migrations`, `redis output cache`.',
         '`dotnet aspire starter`, `aspire template`, `blazor admin starter`, `aspnet core identity`, `mudblazor dashboard`, `database-backed aspire`, `minimal api starter`, `smtp4dev`, `ef core migrations`, `redis output cache`.')

@@ -15,7 +15,7 @@ A polished .NET 10 Aspire admin starter for internal tools, admin portals, and f
 
 This application was generated from an enhanced Aspire template. It includes the foundation most teams add early: identity, roles, admin pages, runtime settings, a database provider, Redis, migrations, optional local email capture, typed DTOs, a Minimal API, a Blazor frontend, and an integration test that starts the distributed app.
 
-Template version: `0.1.33`. The same value is available in `Starter.Shared.TemplateInfo.Version`.
+Template version: `0.1.34`. The same value is available in `Starter.Shared.TemplateInfo.Version`.
 
 | What you need | Already included |
 | --- | --- |
@@ -41,21 +41,17 @@ Run the full stack from the solution directory:
 aspire start --apphost Starter.AppHost/Starter.AppHost.csproj
 ```
 
-Then open the URL shown by Aspire. The default local web endpoint is usually:
-
-```text
-https://localhost:7131
-```
+Then open the `webfrontend` endpoint shown by Aspire. Dashboard, web, API, pgAdmin, and smtp4dev ports are assigned dynamically so multiple generated projects can run side by side.
 
 Useful local URLs:
 
 | Area | URL |
 | --- | --- |
-| Workspace dashboard | `https://localhost:7131/` |
-| Admin login | `https://localhost:7131/admin/login` |
-| Catalog CRUD sample | `https://localhost:7131/dev/catalog` |
-| pgAdmin | `http://localhost:5050` when PostgreSQL pgAdmin is enabled |
-| smtp4dev inbox | `http://localhost:5080` when local email capture is enabled |
+| Workspace dashboard | `webfrontend` endpoint + `/` |
+| Admin login | `webfrontend` endpoint + `/admin/login` |
+| Catalog CRUD sample | `webfrontend` endpoint + `/dev/catalog` |
+| pgAdmin | `pgadmin` endpoint in Aspire Dashboard when PostgreSQL pgAdmin is enabled |
+| smtp4dev inbox | `smtp4dev` endpoint in Aspire Dashboard when local email capture is enabled |
 | Aspire dashboard | Printed by `aspire start` |
 
 If a port changes, ask Aspire:
@@ -143,7 +139,7 @@ Development defaults:
 - SMTP username/password blank
 - From address `no-reply@starter.local`
 
-Use `http://localhost:5080` to inspect captured messages. Forgot password and email confirmation are both wired through the same account email sender.
+Open the `smtp4dev` endpoint from the Aspire Dashboard to inspect captured messages. Forgot password and email confirmation are both wired through the same account email sender.
 
 ## Catalog CRUD Slice
 
