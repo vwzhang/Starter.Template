@@ -1,7 +1,7 @@
 param(
     [string] $TemplateSource = (Join-Path $PSScriptRoot "..\templates\enhanced-aspire-starter"),
     [string] $OutputDirectory = (Join-Path $PSScriptRoot "..\artifacts\vsix"),
-    [string] $Version = "0.1.35",
+    [string] $Version = "0.1.36",
     [string] $Publisher = "vwzhang"
 )
 
@@ -219,6 +219,7 @@ namespace EnhancedAspireStarter.VisualStudio
     public sealed class EnhancedAspireStarterWizard : IWizard
     {
         private static WizardOptions configuredOptions;
+        private static string configuredOptionsKey;
         private static readonly HashSet<string> finalizedSolutions = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         private static readonly HashSet<string> scheduledSolutions = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         private static readonly List<Timer> finalizationTimers = new List<Timer>();
@@ -263,8 +264,15 @@ namespace EnhancedAspireStarter.VisualStudio
             destinationDirectory = GetReplacement(replacementsDictionary, "$destinationdirectory$", string.Empty);
             solutionDirectory = GetReplacement(replacementsDictionary, "$solutiondirectory$", string.Empty);
             var defaultDatabaseName = ToResourceName(projectName) + "db";
+            var generationKey = GetGenerationKey(solutionDirectory, destinationDirectory, projectName);
             Application.EnableVisualStyles();
             var owner = OwnerWindow.FromAutomationObject(automationObject);
+
+            if (!string.Equals(configuredOptionsKey, generationKey, StringComparison.OrdinalIgnoreCase))
+            {
+                configuredOptions = null;
+                configuredOptionsKey = generationKey;
+            }
 
             options = configuredOptions
                 ?? TryReadCopiedOptions(replacementsDictionary)
@@ -308,7 +316,7 @@ namespace EnhancedAspireStarter.VisualStudio
             if (!string.IsNullOrWhiteSpace(root) && Directory.Exists(root))
             {
                 CleanGeneratedRoot(root);
-                TryFinalizeGeneratedSolution(root);
+                TryFinalizeGeneratedSolution(root, false);
             }
 
             SetAppHostStartupProject();
@@ -352,7 +360,7 @@ namespace EnhancedAspireStarter.VisualStudio
             }
 
             CleanGeneratedRoot(root);
-            TryFinalizeGeneratedSolution(root);
+            TryFinalizeGeneratedSolution(root, true);
             SetAppHostStartupProject();
         }
 
@@ -615,7 +623,7 @@ namespace EnhancedAspireStarter.VisualStudio
             return projectFile;
         }
 
-        private void TryFinalizeGeneratedSolution(string root)
+        private void TryFinalizeGeneratedSolution(string root, bool finalizeImmediately)
         {
             var solutionFile = GetSolutionFile(root);
             Trace("TryFinalize root=" + root + " solutionFile=" + solutionFile);
@@ -645,9 +653,23 @@ namespace EnhancedAspireStarter.VisualStudio
             }
 
             var solutionKey = Path.GetFullPath(solutionFile);
-            if (finalizedSolutions.Contains(solutionKey) || scheduledSolutions.Contains(solutionKey))
+            if (finalizedSolutions.Contains(solutionKey))
             {
-                Trace("TryFinalize skipped: already finalized or scheduled");
+                Trace("TryFinalize skipped: already finalized");
+                return;
+            }
+
+            if (finalizeImmediately)
+            {
+                scheduledSolutions.Remove(solutionKey);
+                Trace("TryFinalize immediate root=" + root + " solution=" + solutionFile);
+                FinalizeGeneratedSolution(root, solutionFile);
+                return;
+            }
+
+            if (scheduledSolutions.Contains(solutionKey))
+            {
+                Trace("TryFinalize skipped: already scheduled");
                 return;
             }
 
@@ -756,7 +778,6 @@ namespace EnhancedAspireStarter.VisualStudio
                 return;
             }
 
-            finalizedSolutions.Add(solutionKey);
             Trace("Finalize started contentRoot=" + contentRoot + " solutionRoot=" + solutionRoot);
 
             var finalRoot = MoveProjectsToSolutionRoot(contentRoot, solutionRoot);
@@ -766,6 +787,7 @@ namespace EnhancedAspireStarter.VisualStudio
             RewriteSlnxProjectList(solutionFile, finalRoot);
             ReopenSolution(solutionFile);
             DeleteNestedContentRoot(contentRoot, solutionRoot);
+            finalizedSolutions.Add(solutionKey);
             Trace("Finalize completed finalRoot=" + finalRoot);
         }
 
@@ -1949,6 +1971,26 @@ namespace EnhancedAspireStarter.VisualStudio
                 .ToArray();
 
             return characters.Length == 0 ? "app" : new string(characters);
+        }
+
+        private static string GetGenerationKey(string solutionDirectory, string destinationDirectory, string projectName)
+        {
+            var root = !string.IsNullOrWhiteSpace(solutionDirectory)
+                ? solutionDirectory
+                : destinationDirectory;
+
+            try
+            {
+                if (!string.IsNullOrWhiteSpace(root))
+                {
+                    root = Path.GetFullPath(root).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                }
+            }
+            catch
+            {
+            }
+
+            return (root ?? string.Empty) + "|" + (projectName ?? string.Empty);
         }
 
         private static WizardOptions TryReadCopiedOptions(IDictionary<string, string> replacements)
