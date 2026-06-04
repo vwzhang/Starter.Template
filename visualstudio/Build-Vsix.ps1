@@ -1,7 +1,7 @@
 param(
     [string] $TemplateSource = (Join-Path $PSScriptRoot "..\templates\enhanced-aspire-starter"),
     [string] $OutputDirectory = (Join-Path $PSScriptRoot "..\artifacts\vsix"),
-    [string] $Version = "0.1.28",
+    [string] $Version = "0.1.30",
     [string] $Publisher = "vwzhang"
 )
 
@@ -217,14 +217,34 @@ namespace EnhancedAspireStarter.VisualStudio
     public sealed class EnhancedAspireStarterWizard : IWizard
     {
         private static WizardOptions configuredOptions;
+        private static readonly HashSet<string> finalizedSolutions = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        private static readonly HashSet<string> scheduledSolutions = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        private static readonly List<Timer> finalizationTimers = new List<Timer>();
+        private static readonly string[] ExpectedProjectSuffixes = new[]
+        {
+            "Shared",
+            "ServiceDefaults",
+            "ApiService",
+            "Web",
+            "MigrationService",
+            "Tests"
+        };
+        private static readonly string[] SolutionProjectSuffixes = new[]
+        {
+            "Shared",
+            "ServiceDefaults",
+            "ApiService",
+            "Web",
+            "MigrationService",
+            "AppHost",
+            "Tests"
+        };
         private readonly List<string> projectDirectories = new List<string>();
         private string destinationDirectory;
         private DTE dte;
         private string requestedProjectName;
         private string solutionDirectory;
         private WizardOptions options;
-        private bool shouldEnsureAppHost;
-        private string templateProjectName;
 
         public void RunStarted(
             object automationObject,
@@ -240,14 +260,13 @@ namespace EnhancedAspireStarter.VisualStudio
             requestedProjectName = projectName;
             destinationDirectory = GetReplacement(replacementsDictionary, "$destinationdirectory$", string.Empty);
             solutionDirectory = GetReplacement(replacementsDictionary, "$solutiondirectory$", string.Empty);
-            templateProjectName = GetReplacement(replacementsDictionary, "$aspireadmin_projecttemplate$", string.Empty);
-            shouldEnsureAppHost = templateProjectName.Equals("Root", StringComparison.OrdinalIgnoreCase)
-                || templateProjectName.Equals("Starter.Tests", StringComparison.OrdinalIgnoreCase);
             var defaultDatabaseName = ToResourceName(projectName) + "db";
             Application.EnableVisualStyles();
             var owner = OwnerWindow.FromAutomationObject(automationObject);
 
-            options = configuredOptions ?? TryReadCopiedOptions(replacementsDictionary);
+            options = configuredOptions
+                ?? TryReadCopiedOptions(replacementsDictionary)
+                ?? TryReadEnvironmentOptions(defaultDatabaseName);
 
             if (options == null)
             {
@@ -265,10 +284,12 @@ namespace EnhancedAspireStarter.VisualStudio
 
             configuredOptions = options;
             SetOptionReplacements(replacementsDictionary, options);
+            Trace("RunStarted project=" + requestedProjectName + " destination=" + destinationDirectory + " solution=" + solutionDirectory);
         }
 
         public void ProjectFinishedGenerating(Project project)
         {
+            Trace("ProjectFinishedGenerating project=" + (project == null ? "<null>" : project.FullName));
             if (project == null || string.IsNullOrWhiteSpace(project.FullName))
             {
                 return;
@@ -281,6 +302,13 @@ namespace EnhancedAspireStarter.VisualStudio
             }
 
             CleanGeneratedRoot(projectDirectory);
+            var root = GetGeneratedRoot();
+            if (!string.IsNullOrWhiteSpace(root) && Directory.Exists(root))
+            {
+                CleanGeneratedRoot(root);
+                TryFinalizeGeneratedSolution(root);
+            }
+
             SetAppHostStartupProject();
         }
 
@@ -311,6 +339,7 @@ namespace EnhancedAspireStarter.VisualStudio
 
         public void RunFinished()
         {
+            Trace("RunFinished");
             CaptureSolutionProjectDirectories();
 
             var root = GetGeneratedRoot();
@@ -321,14 +350,7 @@ namespace EnhancedAspireStarter.VisualStudio
             }
 
             CleanGeneratedRoot(root);
-
-            if (shouldEnsureAppHost)
-            {
-                var appHostProjectFile = EnsureAppHostProject(root);
-                AddAppHostProjectToSolution(appHostProjectFile);
-                EnsureSlnxContainsAppHostProject(root, appHostProjectFile);
-            }
-
+            TryFinalizeGeneratedSolution(root);
             SetAppHostStartupProject();
         }
 
@@ -589,6 +611,478 @@ namespace EnhancedAspireStarter.VisualStudio
             }
 
             return projectFile;
+        }
+
+        private void TryFinalizeGeneratedSolution(string root)
+        {
+            var solutionFile = GetSolutionFile(root);
+            Trace("TryFinalize root=" + root + " solutionFile=" + solutionFile);
+            if (string.IsNullOrWhiteSpace(solutionFile) || !File.Exists(solutionFile))
+            {
+                Trace("TryFinalize skipped: solution file missing");
+                return;
+            }
+
+            var solutionRoot = Path.GetDirectoryName(solutionFile);
+            if (string.IsNullOrWhiteSpace(solutionRoot) || string.IsNullOrWhiteSpace(requestedProjectName))
+            {
+                Trace("TryFinalize skipped: solution root or project name missing");
+                return;
+            }
+
+            var contentRoot = ResolveGeneratedContentRoot(root, solutionRoot);
+            if (string.IsNullOrWhiteSpace(contentRoot) || !HasExpectedGeneratedProjects(contentRoot))
+            {
+                Trace("TryFinalize skipped: expected projects missing. contentRoot=" + contentRoot);
+                return;
+            }
+
+            var solutionKey = Path.GetFullPath(solutionFile);
+            if (finalizedSolutions.Contains(solutionKey) || scheduledSolutions.Contains(solutionKey))
+            {
+                Trace("TryFinalize skipped: already finalized or scheduled");
+                return;
+            }
+
+            scheduledSolutions.Add(solutionKey);
+            Trace("TryFinalize scheduled root=" + root + " solution=" + solutionFile);
+            ScheduleFinalization(root, solutionFile);
+        }
+
+        private void ScheduleFinalization(string root, string solutionFile)
+        {
+            var timer = new Timer
+            {
+                Interval = 1500
+            };
+
+            timer.Tick += delegate
+            {
+                timer.Stop();
+                finalizationTimers.Remove(timer);
+                try
+                {
+                    FinalizeGeneratedSolution(root, solutionFile);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show(
+                        "The Aspire Admin Starter project files were created, but the final solution layout step failed." + Environment.NewLine + Environment.NewLine + ex.Message,
+                        "Aspire Admin Starter",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+                }
+                finally
+                {
+                    scheduledSolutions.Remove(Path.GetFullPath(solutionFile));
+                    timer.Dispose();
+                }
+            };
+
+            finalizationTimers.Add(timer);
+            timer.Start();
+        }
+
+        private void FinalizeGeneratedSolution(string root, string solutionFile)
+        {
+            var solutionKey = Path.GetFullPath(solutionFile);
+
+            if (finalizedSolutions.Contains(solutionKey))
+            {
+                Trace("Finalize skipped: already finalized");
+                return;
+            }
+
+            var solutionRoot = Path.GetDirectoryName(solutionFile);
+            if (string.IsNullOrWhiteSpace(solutionRoot))
+            {
+                Trace("Finalize skipped: solution root missing");
+                return;
+            }
+
+            var contentRoot = ResolveGeneratedContentRoot(root, solutionRoot);
+            if (string.IsNullOrWhiteSpace(contentRoot) || !HasExpectedGeneratedProjects(contentRoot))
+            {
+                Trace("Finalize skipped: expected projects missing. contentRoot=" + contentRoot);
+                return;
+            }
+
+            finalizedSolutions.Add(solutionKey);
+            Trace("Finalize started contentRoot=" + contentRoot + " solutionRoot=" + solutionRoot);
+
+            var finalRoot = MoveProjectsToSolutionRoot(contentRoot, solutionRoot);
+            CleanGeneratedRoot(finalRoot);
+
+            EnsureAppHostProject(finalRoot);
+            RewriteSlnxProjectList(solutionFile, finalRoot);
+            ReopenSolution(solutionFile);
+            DeleteNestedContentRoot(contentRoot, solutionRoot);
+            Trace("Finalize completed finalRoot=" + finalRoot);
+        }
+
+        private void ReopenSolution(string solutionFile)
+        {
+            if (dte == null || dte.Solution == null || string.IsNullOrWhiteSpace(solutionFile) || !File.Exists(solutionFile))
+            {
+                return;
+            }
+
+            try
+            {
+                dte.Solution.Close(false);
+                dte.Solution.Open(solutionFile);
+            }
+            catch
+            {
+            }
+        }
+
+        private static void DeleteNestedContentRoot(string contentRoot, string solutionRoot)
+        {
+            if (string.IsNullOrWhiteSpace(contentRoot) || string.IsNullOrWhiteSpace(solutionRoot))
+            {
+                return;
+            }
+
+            var normalizedContentRoot = Path.GetFullPath(contentRoot).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            var normalizedSolutionRoot = Path.GetFullPath(solutionRoot).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+            if (string.Equals(normalizedContentRoot, normalizedSolutionRoot, StringComparison.OrdinalIgnoreCase)
+                || !Directory.Exists(contentRoot))
+            {
+                return;
+            }
+
+            for (var attempt = 0; attempt < 10; attempt++)
+            {
+                try
+                {
+                    Directory.Delete(contentRoot, true);
+                    return;
+                }
+                catch (IOException)
+                {
+                    System.Threading.Thread.Sleep(250);
+                }
+                catch (UnauthorizedAccessException)
+                {
+                    System.Threading.Thread.Sleep(250);
+                }
+            }
+
+            try
+            {
+                Directory.Delete(contentRoot, true);
+            }
+            catch
+            {
+            }
+        }
+
+        private string ResolveGeneratedContentRoot(string root, string solutionRoot)
+        {
+            foreach (var candidate in GetGeneratedContentRootCandidates(root, solutionRoot))
+            {
+                Trace("Resolve candidate=" + candidate + " exists=" + (!string.IsNullOrWhiteSpace(candidate) && Directory.Exists(candidate)).ToString());
+                if (!string.IsNullOrWhiteSpace(candidate)
+                    && Directory.Exists(candidate)
+                    && HasExpectedGeneratedProjects(candidate))
+                {
+                    return candidate;
+                }
+            }
+
+            return string.Empty;
+        }
+
+        private void RemoveLoadedGeneratedProjects(string contentRoot, string solutionRoot)
+        {
+            if (dte == null || dte.Solution == null)
+            {
+                return;
+            }
+
+            var normalizedContentRoot = Path.GetFullPath(contentRoot).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            var normalizedSolutionRoot = Path.GetFullPath(solutionRoot).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+            if (string.Equals(normalizedContentRoot, normalizedSolutionRoot, StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            var contentRootPrefix = normalizedContentRoot + Path.DirectorySeparatorChar;
+
+            foreach (var project in GetSolutionProjects().ToList())
+            {
+                if (project == null || string.IsNullOrWhiteSpace(project.FullName))
+                {
+                    continue;
+                }
+
+                var projectFile = string.Empty;
+                try
+                {
+                    projectFile = Path.GetFullPath(project.FullName);
+                }
+                catch
+                {
+                    projectFile = project.FullName;
+                }
+
+                if (!projectFile.StartsWith(contentRootPrefix, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                try
+                {
+                    dte.Solution.Remove(project);
+                }
+                catch
+                {
+                }
+            }
+        }
+
+        private IEnumerable<string> GetGeneratedContentRootCandidates(string root, string solutionRoot)
+        {
+            if (!string.IsNullOrWhiteSpace(root))
+            {
+                yield return root;
+            }
+
+            if (!string.IsNullOrWhiteSpace(solutionRoot))
+            {
+                yield return solutionRoot;
+
+                if (!string.IsNullOrWhiteSpace(requestedProjectName))
+                {
+                    yield return Path.Combine(solutionRoot, requestedProjectName);
+                }
+            }
+        }
+
+        private bool HasExpectedGeneratedProjects(string root)
+        {
+            foreach (var suffix in ExpectedProjectSuffixes)
+            {
+                var projectFile = GetProjectFile(root, suffix);
+                if (!File.Exists(projectFile))
+                {
+                    Trace("Expected project missing: " + projectFile);
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        private string MoveProjectsToSolutionRoot(string contentRoot, string solutionRoot)
+        {
+            var normalizedContentRoot = Path.GetFullPath(contentRoot).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            var normalizedSolutionRoot = Path.GetFullPath(solutionRoot).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+            if (string.Equals(normalizedContentRoot, normalizedSolutionRoot, StringComparison.OrdinalIgnoreCase))
+            {
+                return solutionRoot;
+            }
+
+            foreach (var suffix in ExpectedProjectSuffixes)
+            {
+                var sourceDirectory = Path.Combine(contentRoot, requestedProjectName + "." + suffix);
+                var destinationDirectory = Path.Combine(solutionRoot, requestedProjectName + "." + suffix);
+
+                if (!Directory.Exists(sourceDirectory))
+                {
+                    continue;
+                }
+
+                if (Directory.Exists(destinationDirectory))
+                {
+                    continue;
+                }
+
+                MoveDirectoryWithRetry(sourceDirectory, destinationDirectory);
+            }
+
+            try
+            {
+                if (Directory.Exists(contentRoot)
+                    && !Directory.EnumerateFileSystemEntries(contentRoot).Any())
+                {
+                    Directory.Delete(contentRoot);
+                }
+            }
+            catch
+            {
+            }
+
+            projectDirectories.Clear();
+            foreach (var suffix in ExpectedProjectSuffixes)
+            {
+                var projectDirectory = Path.Combine(solutionRoot, requestedProjectName + "." + suffix);
+                if (Directory.Exists(projectDirectory))
+                {
+                    projectDirectories.Add(projectDirectory);
+                }
+            }
+
+            return solutionRoot;
+        }
+
+        private static void MoveDirectoryWithRetry(string sourceDirectory, string destinationDirectory)
+        {
+            for (var attempt = 0; attempt < 10; attempt++)
+            {
+                try
+                {
+                    Directory.Move(sourceDirectory, destinationDirectory);
+                    return;
+                }
+                catch (IOException)
+                {
+                    System.Threading.Thread.Sleep(200);
+                }
+                catch (UnauthorizedAccessException)
+                {
+                    System.Threading.Thread.Sleep(200);
+                }
+            }
+
+            Directory.Move(sourceDirectory, destinationDirectory);
+        }
+
+        private void RewriteSlnxProjectList(string solutionFile, string root)
+        {
+            if (string.IsNullOrWhiteSpace(solutionFile) || !solutionFile.EndsWith(".slnx", StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            var solutionRoot = Path.GetDirectoryName(solutionFile);
+            if (string.IsNullOrWhiteSpace(solutionRoot))
+            {
+                return;
+            }
+
+            var builder = new StringBuilder();
+            builder.AppendLine("<Solution>");
+
+            foreach (var suffix in SolutionProjectSuffixes)
+            {
+                var projectFile = GetProjectFile(root, suffix);
+                if (!File.Exists(projectFile))
+                {
+                    continue;
+                }
+
+                builder
+                    .Append("  <Project Path=\"")
+                    .Append(EscapeXmlAttribute(GetRelativePath(solutionRoot, projectFile).Replace('\\', '/')))
+                    .AppendLine("\" />");
+            }
+
+            builder.AppendLine("</Solution>");
+            WriteUtf8NoBom(solutionFile, builder.ToString());
+        }
+
+        private void ReloadSolutionProjects(string root)
+        {
+            if (dte == null || dte.Solution == null)
+            {
+                return;
+            }
+
+            var expectedProjectFiles = SolutionProjectSuffixes
+                .Select(suffix => GetProjectFile(root, suffix))
+                .Where(File.Exists)
+                .Select(Path.GetFullPath)
+                .ToList();
+
+            var expectedProjectFileSet = new HashSet<string>(expectedProjectFiles, StringComparer.OrdinalIgnoreCase);
+
+            foreach (var project in GetSolutionProjects().ToList())
+            {
+                if (project == null || string.IsNullOrWhiteSpace(project.FullName))
+                {
+                    continue;
+                }
+
+                var projectFile = string.Empty;
+                try
+                {
+                    projectFile = Path.GetFullPath(project.FullName);
+                }
+                catch
+                {
+                    projectFile = project.FullName;
+                }
+
+                if (expectedProjectFileSet.Contains(projectFile))
+                {
+                    continue;
+                }
+
+                if (!IsGeneratedProjectFile(projectFile))
+                {
+                    continue;
+                }
+
+                try
+                {
+                    dte.Solution.Remove(project);
+                }
+                catch
+                {
+                }
+            }
+
+            foreach (var projectFile in expectedProjectFiles)
+            {
+                if (IsProjectLoaded(projectFile))
+                {
+                    continue;
+                }
+
+                AddAppHostProjectToSolution(projectFile);
+            }
+        }
+
+        private bool IsProjectLoaded(string projectFile)
+        {
+            foreach (var project in GetSolutionProjects())
+            {
+                if (project == null || string.IsNullOrWhiteSpace(project.FullName))
+                {
+                    continue;
+                }
+
+                try
+                {
+                    if (string.Equals(Path.GetFullPath(project.FullName), Path.GetFullPath(projectFile), StringComparison.OrdinalIgnoreCase))
+                    {
+                        return true;
+                    }
+                }
+                catch
+                {
+                }
+            }
+
+            return false;
+        }
+
+        private string GetProjectFile(string root, string suffix)
+        {
+            if (string.IsNullOrWhiteSpace(root) || string.IsNullOrWhiteSpace(requestedProjectName))
+            {
+                return string.Empty;
+            }
+
+            return Path.Combine(
+                root,
+                requestedProjectName + "." + suffix,
+                requestedProjectName + "." + suffix + ".csproj");
         }
 
         private void AddAppHostProjectToSolution(string projectFile)
@@ -995,6 +1489,15 @@ namespace EnhancedAspireStarter.VisualStudio
             return (value ?? string.Empty).Replace("\\", "\\\\").Replace("\"", "\\\"");
         }
 
+        private static string EscapeXmlAttribute(string value)
+        {
+            return (value ?? string.Empty)
+                .Replace("&", "&amp;")
+                .Replace("\"", "&quot;")
+                .Replace("<", "&lt;")
+                .Replace(">", "&gt;");
+        }
+
         private static string ToCSharpIdentifier(string value)
         {
             var builder = new StringBuilder();
@@ -1037,6 +1540,25 @@ namespace EnhancedAspireStarter.VisualStudio
         private static void WriteUtf8NoBom(string path, string content)
         {
             File.WriteAllText(path, content, new UTF8Encoding(false));
+        }
+
+        private static void Trace(string message)
+        {
+            if (!ParseTemplateBoolean(Environment.GetEnvironmentVariable("ASPIRE_ADMIN_STARTER_TRACE")))
+            {
+                return;
+            }
+
+            try
+            {
+                File.AppendAllText(
+                    Path.Combine(Path.GetTempPath(), "AspireAdminStarterWizard.log"),
+                    DateTime.Now.ToString("O") + " " + message + Environment.NewLine,
+                    new UTF8Encoding(false));
+            }
+            catch
+            {
+            }
         }
 
         private void DeleteInactiveMigrationDirectories(string root)
@@ -1273,6 +1795,39 @@ namespace EnhancedAspireStarter.VisualStudio
                 ParseTemplateBoolean(GetReplacement(replacements, "$ext_aspireadmin_includesmtp4dev$", "True")),
                 ParseTemplateBoolean(GetReplacement(replacements, "$ext_aspireadmin_seeddevelopmenttestusersvalue$", "true")),
                 ParseTemplateBoolean(GetReplacement(replacements, "$ext_aspireadmin_seedcatalogsampledatavalue$", "true")));
+        }
+
+        private static WizardOptions TryReadEnvironmentOptions(string defaultDatabaseName)
+        {
+            var provider = Environment.GetEnvironmentVariable("ASPIRE_ADMIN_STARTER_DATABASE_PROVIDER");
+            if (string.IsNullOrWhiteSpace(provider))
+            {
+                return null;
+            }
+
+            var useSqlServer = provider.Equals("SqlServer", StringComparison.OrdinalIgnoreCase)
+                || provider.Equals("SQL Server", StringComparison.OrdinalIgnoreCase);
+            var databaseName = Environment.GetEnvironmentVariable("ASPIRE_ADMIN_STARTER_DATABASE_NAME");
+
+            return WizardOptions.FromValues(
+                useSqlServer,
+                string.IsNullOrWhiteSpace(databaseName) ? defaultDatabaseName : databaseName,
+                ParseEnvironmentBoolean("ASPIRE_ADMIN_STARTER_INCLUDE_PGADMIN", true),
+                !useSqlServer && ParseEnvironmentBoolean("ASPIRE_ADMIN_STARTER_INCLUDE_PGADMIN", true),
+                ParseEnvironmentBoolean("ASPIRE_ADMIN_STARTER_INCLUDE_SMTP4DEV", true),
+                ParseEnvironmentBoolean("ASPIRE_ADMIN_STARTER_SEED_USERS", true),
+                ParseEnvironmentBoolean("ASPIRE_ADMIN_STARTER_SEED_SAMPLE_DATA", true));
+        }
+
+        private static bool ParseEnvironmentBoolean(string name, bool fallback)
+        {
+            var value = Environment.GetEnvironmentVariable(name);
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return fallback;
+            }
+
+            return ParseTemplateBoolean(value);
         }
 
         private static void SetOptionReplacements(IDictionary<string, string> replacements, WizardOptions options)
