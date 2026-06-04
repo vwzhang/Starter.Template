@@ -31,13 +31,13 @@ dotnet pack
 Current local package:
 
 ```text
-bin\Release\Vwzhang.EnhancedAspireStarter.Templates.0.1.13.nupkg
+bin\Release\Vwzhang.EnhancedAspireStarter.Templates.0.1.14.nupkg
 ```
 
 ## Install Locally
 
 ```powershell
-dotnet new install .\bin\Release\Vwzhang.EnhancedAspireStarter.Templates.0.1.13.nupkg
+dotnet new install .\bin\Release\Vwzhang.EnhancedAspireStarter.Templates.0.1.14.nupkg
 ```
 
 Confirm the template is visible:
@@ -120,7 +120,7 @@ Build the VSIX:
 Output:
 
 ```text
-artifacts\vsix\EnhancedAspireStarter.VisualStudio.0.1.13.vsix
+artifacts\vsix\EnhancedAspireStarter.VisualStudio.0.1.14.vsix
 ```
 
 Install it, restart Visual Studio, then search for `Aspire Admin Starter` in the New Project dialog. After you click Create, the template displays an options page for database name, pgAdmin, smtp4dev, and seed data.
@@ -132,7 +132,7 @@ The VSIX currently generates the complete default starter. The CLI package is th
 After changing the source starter app, run:
 
 ```powershell
-.\scripts\Update-Template.ps1 -SourceRepository C:\Aspire\Starter -TemplateVersion 0.1.13
+.\scripts\Update-Template.ps1 -SourceRepository C:\Aspire\Starter -TemplateVersion 0.1.14
 ```
 
 The helper:
@@ -149,7 +149,7 @@ The helper:
 Recommended checks before publishing a new template version:
 
 ```powershell
-dotnet new install .\bin\Release\Vwzhang.EnhancedAspireStarter.Templates.0.1.13.nupkg --force
+dotnet new install .\bin\Release\Vwzhang.EnhancedAspireStarter.Templates.0.1.14.nupkg --force
 mkdir C:\Temp\SmokeApp
 cd C:\Temp\SmokeApp
 dotnet new aspire-admin-starter -n SmokeApp --force

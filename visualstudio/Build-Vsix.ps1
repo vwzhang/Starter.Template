@@ -1,7 +1,7 @@
 param(
     [string] $TemplateSource = (Join-Path $PSScriptRoot "..\templates\enhanced-aspire-starter"),
     [string] $OutputDirectory = (Join-Path $PSScriptRoot "..\artifacts\vsix"),
-    [string] $Version = "0.1.13",
+    [string] $Version = "0.1.14",
     [string] $Publisher = "vwzhang"
 )
 
@@ -146,6 +146,7 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
+using System.Reflection;
 using System.Windows.Forms;
 using EnvDTE;
 using Microsoft.VisualStudio.TemplateWizard;
@@ -162,10 +163,13 @@ namespace AspireAdminStarter.VisualStudio
         {
             var projectName = GetReplacement(replacementsDictionary, "$safeprojectname$", "MyAspireAdmin");
             var defaultDatabaseName = ToResourceName(projectName) + "db";
+            Application.EnableVisualStyles();
+            var owner = OwnerWindow.FromAutomationObject(automationObject);
 
             using (var form = new OptionsForm(defaultDatabaseName))
             {
-                if (form.ShowDialog() != DialogResult.OK)
+                var result = owner == null ? form.ShowDialog() : form.ShowDialog(owner);
+                if (result != DialogResult.OK)
                 {
                     throw new WizardCancelledException("Aspire Admin Starter creation was canceled.");
                 }
@@ -240,6 +244,28 @@ namespace AspireAdminStarter.VisualStudio
         }
     }
 
+    internal sealed class OwnerWindow : IWin32Window
+    {
+        private OwnerWindow(IntPtr handle)
+        {
+            Handle = handle;
+        }
+
+        public IntPtr Handle { get; private set; }
+
+        public static OwnerWindow FromAutomationObject(object automationObject)
+        {
+            var dte = automationObject as DTE;
+            if (dte == null || dte.MainWindow == null)
+            {
+                return null;
+            }
+
+            var handle = dte.MainWindow.HWnd;
+            return handle == IntPtr.Zero ? null : new OwnerWindow(handle);
+        }
+    }
+
     internal sealed class OptionsForm : Form
     {
         private readonly TextBox databaseNameTextBox;
@@ -251,41 +277,43 @@ namespace AspireAdminStarter.VisualStudio
         public OptionsForm(string defaultDatabaseName)
         {
             Text = "Aspire Admin Starter options";
-            StartPosition = FormStartPosition.CenterScreen;
+            StartPosition = FormStartPosition.CenterParent;
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MinimizeBox = false;
             MaximizeBox = false;
             ShowInTaskbar = false;
-            ClientSize = new Size(520, 350);
+            ClientSize = new Size(540, 370);
+            Font = SystemFonts.MessageBoxFont;
 
             var titleLabel = new Label
             {
                 Text = "Choose starter options",
                 Font = new Font(Font.FontFamily, 12, FontStyle.Bold),
                 AutoSize = true,
-                Location = new Point(18, 16)
+                Location = new Point(20, 18)
             };
 
             var descriptionLabel = new Label
             {
                 Text = "These options match the dotnet new template switches and are applied to the generated Aspire solution.",
                 AutoSize = false,
-                Location = new Point(18, 46),
-                Size = new Size(480, 38)
+                Location = new Point(20, 50),
+                Size = new Size(500, 38)
             };
 
             var databaseNameLabel = new Label
             {
                 Text = "Database name",
                 AutoSize = true,
-                Location = new Point(18, 96)
+                Location = new Point(20, 100)
             };
 
             databaseNameTextBox = new TextBox
             {
                 Text = defaultDatabaseName,
-                Location = new Point(18, 118),
-                Size = new Size(470, 23)
+                Location = new Point(20, 122),
+                Size = new Size(500, 23),
+                BorderStyle = BorderStyle.FixedSingle
             };
 
             includePgAdminCheckBox = new CheckBox
@@ -293,7 +321,7 @@ namespace AspireAdminStarter.VisualStudio
                 Text = "Include pgAdmin",
                 Checked = true,
                 AutoSize = true,
-                Location = new Point(18, 158)
+                Location = new Point(20, 164)
             };
 
             includeSmtp4devCheckBox = new CheckBox
@@ -301,7 +329,7 @@ namespace AspireAdminStarter.VisualStudio
                 Text = "Include smtp4dev local email capture",
                 Checked = true,
                 AutoSize = true,
-                Location = new Point(18, 188)
+                Location = new Point(20, 194)
             };
 
             seedUsersCheckBox = new CheckBox
@@ -309,7 +337,7 @@ namespace AspireAdminStarter.VisualStudio
                 Text = "Seed admin, manager, and user test accounts",
                 Checked = true,
                 AutoSize = true,
-                Location = new Point(18, 218)
+                Location = new Point(20, 224)
             };
 
             seedSampleDataCheckBox = new CheckBox
@@ -317,15 +345,21 @@ namespace AspireAdminStarter.VisualStudio
                 Text = "Seed catalog sample data",
                 Checked = true,
                 AutoSize = true,
-                Location = new Point(18, 248)
+                Location = new Point(20, 254)
+            };
+
+            var separator = new Panel
+            {
+                Location = new Point(20, 308),
+                Size = new Size(500, 1)
             };
 
             var okButton = new Button
             {
                 Text = "Create",
                 DialogResult = DialogResult.OK,
-                Location = new Point(318, 300),
-                Size = new Size(80, 28)
+                Location = new Point(340, 326),
+                Size = new Size(82, 28)
             };
             okButton.Click += ValidateAndClose;
 
@@ -333,8 +367,8 @@ namespace AspireAdminStarter.VisualStudio
             {
                 Text = "Cancel",
                 DialogResult = DialogResult.Cancel,
-                Location = new Point(408, 300),
-                Size = new Size(80, 28)
+                Location = new Point(438, 326),
+                Size = new Size(82, 28)
             };
 
             Controls.AddRange(new Control[]
@@ -347,12 +381,14 @@ namespace AspireAdminStarter.VisualStudio
                 includeSmtp4devCheckBox,
                 seedUsersCheckBox,
                 seedSampleDataCheckBox,
+                separator,
                 okButton,
                 cancelButton
             });
 
             AcceptButton = okButton;
             CancelButton = cancelButton;
+            ApplyVisualStudioTheme(separator, okButton, cancelButton);
         }
 
         public string DatabaseName
@@ -412,6 +448,141 @@ namespace AspireAdminStarter.VisualStudio
                 .ToArray();
 
             return new string(characters);
+        }
+
+        private void ApplyVisualStudioTheme(Panel separator, Button okButton, Button cancelButton)
+        {
+            var theme = VsTheme.Current;
+
+            BackColor = theme.DialogBackground;
+            ForeColor = theme.DialogText;
+
+            ApplyThemeToControls(Controls, theme);
+
+            databaseNameTextBox.BackColor = theme.InputBackground;
+            databaseNameTextBox.ForeColor = theme.InputText;
+
+            separator.BackColor = theme.Border;
+
+            ApplyButtonTheme(okButton, theme);
+            ApplyButtonTheme(cancelButton, theme);
+        }
+
+        private static void ApplyThemeToControls(Control.ControlCollection controls, VsTheme theme)
+        {
+            foreach (Control control in controls)
+            {
+                control.BackColor = theme.DialogBackground;
+                control.ForeColor = theme.DialogText;
+
+                var checkBox = control as CheckBox;
+                if (checkBox != null)
+                {
+                    checkBox.UseVisualStyleBackColor = false;
+                }
+
+                if (control.HasChildren)
+                {
+                    ApplyThemeToControls(control.Controls, theme);
+                }
+            }
+        }
+
+        private static void ApplyButtonTheme(Button button, VsTheme theme)
+        {
+            button.FlatStyle = FlatStyle.Flat;
+            button.UseVisualStyleBackColor = false;
+            button.BackColor = theme.ButtonBackground;
+            button.ForeColor = theme.ButtonText;
+            button.FlatAppearance.BorderColor = theme.ButtonBorder;
+            button.FlatAppearance.MouseOverBackColor = theme.ButtonHoverBackground;
+            button.FlatAppearance.MouseDownBackColor = theme.ButtonPressedBackground;
+        }
+    }
+
+    internal sealed class VsTheme
+    {
+        private VsTheme(
+            Color dialogBackground,
+            Color dialogText,
+            Color inputBackground,
+            Color inputText,
+            Color border,
+            Color buttonBackground,
+            Color buttonText,
+            Color buttonBorder,
+            Color buttonHoverBackground,
+            Color buttonPressedBackground)
+        {
+            DialogBackground = dialogBackground;
+            DialogText = dialogText;
+            InputBackground = inputBackground;
+            InputText = inputText;
+            Border = border;
+            ButtonBackground = buttonBackground;
+            ButtonText = buttonText;
+            ButtonBorder = buttonBorder;
+            ButtonHoverBackground = buttonHoverBackground;
+            ButtonPressedBackground = buttonPressedBackground;
+        }
+
+        public Color DialogBackground { get; private set; }
+        public Color DialogText { get; private set; }
+        public Color InputBackground { get; private set; }
+        public Color InputText { get; private set; }
+        public Color Border { get; private set; }
+        public Color ButtonBackground { get; private set; }
+        public Color ButtonText { get; private set; }
+        public Color ButtonBorder { get; private set; }
+        public Color ButtonHoverBackground { get; private set; }
+        public Color ButtonPressedBackground { get; private set; }
+
+        public static VsTheme Current
+        {
+            get
+            {
+                return new VsTheme(
+                    GetThemedColor("DialogColorKey", SystemColors.Window),
+                    GetThemedColor("DialogTextColorKey", SystemColors.ControlText),
+                    GetThemedColor("ComboBoxBackgroundColorKey", SystemColors.Window),
+                    GetThemedColor("ComboBoxTextColorKey", SystemColors.WindowText),
+                    GetThemedColor("PanelSeparatorColorKey", SystemColors.ControlDark),
+                    GetThemedColor("ButtonColorKey", SystemColors.Control),
+                    GetThemedColor("ButtonTextColorKey", SystemColors.ControlText),
+                    GetThemedColor("ButtonBorderColorKey", SystemColors.ActiveBorder),
+                    GetThemedColor("ButtonMouseOverColorKey", SystemColors.ControlLight),
+                    GetThemedColor("ButtonMouseDownColorKey", SystemColors.ControlDark));
+            }
+        }
+
+        private static Color GetThemedColor(string keyPropertyName, Color fallback)
+        {
+            try
+            {
+                var environmentColorsType = Type.GetType("Microsoft.VisualStudio.PlatformUI.EnvironmentColors, Microsoft.VisualStudio.Shell.15.0", false);
+                var colorThemeType = Type.GetType("Microsoft.VisualStudio.PlatformUI.VSColorTheme, Microsoft.VisualStudio.Shell.15.0", false);
+
+                if (environmentColorsType == null || colorThemeType == null)
+                {
+                    return fallback;
+                }
+
+                var keyProperty = environmentColorsType.GetProperty(keyPropertyName, BindingFlags.Public | BindingFlags.Static);
+                var getColorMethod = colorThemeType.GetMethod("GetThemedColor", BindingFlags.Public | BindingFlags.Static);
+
+                if (keyProperty == null || getColorMethod == null)
+                {
+                    return fallback;
+                }
+
+                var key = keyProperty.GetValue(null, null);
+                var themedColor = getColorMethod.Invoke(null, new[] { key });
+                return themedColor is Color ? (Color)themedColor : fallback;
+            }
+            catch
+            {
+                return fallback;
+            }
         }
     }
 }
