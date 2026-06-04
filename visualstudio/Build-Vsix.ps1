@@ -1,7 +1,7 @@
 param(
     [string] $TemplateSource = (Join-Path $PSScriptRoot "..\templates\enhanced-aspire-starter"),
     [string] $OutputDirectory = (Join-Path $PSScriptRoot "..\artifacts\vsix"),
-    [string] $Version = "0.1.21",
+    [string] $Version = "0.1.22",
     [string] $Publisher = "vwzhang"
 )
 
@@ -171,8 +171,8 @@ function Write-WizardProjectFiles(
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net472</TargetFramework>
-    <AssemblyName>AspireAdminStarter.Wizard</AssemblyName>
-    <RootNamespace>AspireAdminStarter.VisualStudio</RootNamespace>
+    <AssemblyName>EnhancedAspireStarter.Wizard</AssemblyName>
+    <RootNamespace>EnhancedAspireStarter.VisualStudio</RootNamespace>
     <OutputPath>bin\`$(Configuration)\</OutputPath>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <Nullable>disable</Nullable>
@@ -198,7 +198,7 @@ function Write-WizardProjectFiles(
 </Project>
 "@
 
-    Write-Utf8NoBom (Join-Path $WizardDirectory "AspireAdminStarter.Wizard.csproj") $projectFile
+    Write-Utf8NoBom (Join-Path $WizardDirectory "EnhancedAspireStarter.Wizard.csproj") $projectFile
 
     $wizardCode = @'
 using System;
@@ -212,9 +212,9 @@ using System.Windows.Forms;
 using EnvDTE;
 using Microsoft.VisualStudio.TemplateWizard;
 
-namespace AspireAdminStarter.VisualStudio
+namespace EnhancedAspireStarter.VisualStudio
 {
-    public sealed class AspireAdminStarterWizard : IWizard
+    public sealed class EnhancedAspireStarterWizard : IWizard
     {
         private static WizardOptions configuredOptions;
         private readonly List<string> projectDirectories = new List<string>();
@@ -1357,7 +1357,7 @@ namespace AspireAdminStarter.VisualStudio
 }
 '@
 
-    Write-Utf8NoBom (Join-Path $WizardDirectory "AspireAdminStarterWizard.cs") $wizardCode
+    Write-Utf8NoBom (Join-Path $WizardDirectory "EnhancedAspireStarterWizard.cs") $wizardCode
 }
 
 function New-ZipFromDirectoryContent([string] $SourceDirectory, [string] $DestinationPath) {
@@ -1615,8 +1615,8 @@ function New-ProjectTemplateFile(
         $writer.WriteEndElement()
 
         $writer.WriteStartElement("WizardExtension")
-        $writer.WriteElementString("Assembly", "AspireAdminStarter.Wizard")
-        $writer.WriteElementString("FullClassName", "AspireAdminStarter.VisualStudio.AspireAdminStarterWizard")
+        $writer.WriteElementString("Assembly", "EnhancedAspireStarter.Wizard")
+        $writer.WriteElementString("FullClassName", "EnhancedAspireStarter.VisualStudio.EnhancedAspireStarterWizard")
         $writer.WriteEndElement()
 
         $writer.WriteEndElement()
@@ -1664,8 +1664,8 @@ function Write-RootTemplate([string] $Path) {
     </ProjectCollection>
   </TemplateContent>
   <WizardExtension>
-    <Assembly>AspireAdminStarter.Wizard</Assembly>
-    <FullClassName>AspireAdminStarter.VisualStudio.AspireAdminStarterWizard</FullClassName>
+    <Assembly>EnhancedAspireStarter.Wizard</Assembly>
+    <FullClassName>EnhancedAspireStarter.VisualStudio.EnhancedAspireStarterWizard</FullClassName>
   </WizardExtension>
 </VSTemplate>
 '@
@@ -1701,7 +1701,7 @@ function Write-VsixManifest([string] $Path, [string] $Version, [string] $Publish
   </Dependencies>
   <Assets>
     <Asset Type="Microsoft.VisualStudio.ProjectTemplate" Path="ProjectTemplates\CSharp" />
-    <Asset Type="Microsoft.VisualStudio.Assembly" Path="AspireAdminStarter.Wizard.dll" AssemblyName="AspireAdminStarter.Wizard" />
+    <Asset Type="Microsoft.VisualStudio.Assembly" Path="EnhancedAspireStarter.Wizard.dll" AssemblyName="EnhancedAspireStarter.Wizard" />
   </Assets>
   <Prerequisites>
     <Prerequisite Id="Microsoft.VisualStudio.Component.CoreEditor" Version="[17.0,19.0)" DisplayName="Visual Studio core editor" />
@@ -1740,7 +1740,7 @@ function Write-VsixProjectFile(
     </ZipProject>
     <Content Include="Resources\LICENSE.txt" IncludeInVSIX="true" VSIXSubPath="Resources" />
     <Content Include="Resources\ReleaseNotes.txt" IncludeInVSIX="true" VSIXSubPath="Resources" />
-    <Content Include="AspireAdminStarter.Wizard.dll" IncludeInVSIX="true" />
+    <Content Include="EnhancedAspireStarter.Wizard.dll" IncludeInVSIX="true" />
   </ItemGroup>
   <Import Project="$escapedTargets" />
 </Project>
@@ -1755,7 +1755,7 @@ $workPath = Join-Path $outputPath "obj"
 $templateRoot = Join-Path $workPath "EnhancedAspireStarter"
 $vsixProjectRoot = Join-Path $workPath "vsix-project"
 $wizardProjectRoot = Join-Path $vsixProjectRoot "Wizard"
-$wizardBuildOutput = Join-Path $wizardProjectRoot "bin\Release\AspireAdminStarter.Wizard.dll"
+$wizardBuildOutput = Join-Path $wizardProjectRoot "bin\Release\EnhancedAspireStarter.Wizard.dll"
 $vsixProjectTemplateRoot = Join-Path $vsixProjectRoot "ProjectTemplates\CSharp\Aspire\EnhancedAspireStarter"
 $templateZip = Join-Path $vsixProjectRoot "ProjectTemplates\CSharp\Aspire\EnhancedAspireStarter.zip"
 $vsixBuildOutput = Join-Path $vsixProjectRoot "bin\Release\EnhancedAspireStarter.VisualStudio.vsix"
@@ -1813,7 +1813,7 @@ Write-Utf8NoBom (Join-Path $vsixProjectRoot "Resources\ReleaseNotes.txt") "Enhan
 Write-WizardProjectFiles $wizardProjectRoot $visualStudioSdk.TemplateWizardInterfacePath $visualStudioSdk.EnvDtePath $visualStudioSdk.VisualStudioInteropPath
 
 $wizardBuildArguments = @(
-    (Join-Path $wizardProjectRoot "AspireAdminStarter.Wizard.csproj"),
+    (Join-Path $wizardProjectRoot "EnhancedAspireStarter.Wizard.csproj"),
     "/restore",
     "/p:Configuration=Release",
     "/v:minimal"
@@ -1828,7 +1828,7 @@ if (-not (Test-Path -LiteralPath $wizardBuildOutput)) {
     throw "Wizard build completed but output was not found: $wizardBuildOutput"
 }
 
-Copy-Item -LiteralPath $wizardBuildOutput -Destination (Join-Path $vsixProjectRoot "AspireAdminStarter.Wizard.dll") -Force
+Copy-Item -LiteralPath $wizardBuildOutput -Destination (Join-Path $vsixProjectRoot "EnhancedAspireStarter.Wizard.dll") -Force
 Write-VsixManifest (Join-Path $vsixProjectRoot "source.extension.vsixmanifest") $Version $Publisher
 Write-VsixProjectFile (Join-Path $vsixProjectRoot "EnhancedAspireStarter.VisualStudio.csproj") $visualStudioSdk.VSSDKTargets
 
