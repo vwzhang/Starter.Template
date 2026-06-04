@@ -7,7 +7,7 @@
 ![Identity](https://img.shields.io/badge/Auth-ASP.NET%20Core%20Identity-0E7C7B)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-A polished .NET 10 Aspire app foundation for internal tools, admin portals, and full-stack business apps. It includes the infrastructure most projects need on day one: authentication, role-based admin pages, runtime settings, PostgreSQL, Redis, local email capture, migrations, a Minimal API, a Blazor frontend, shared DTOs, and a real database-backed CRUD slice.
+A polished .NET 10 Aspire admin starter for internal tools, admin portals, and full-stack business apps. It gives you the infrastructure most projects need on day one: authentication, role-based admin pages, runtime settings, PostgreSQL, Redis, local email capture, migrations, a Minimal API, a Blazor frontend, shared DTOs, and a real database-backed CRUD slice.
 
 ![Starter Workspace](docs/assets/workspace.png)
 
@@ -15,7 +15,7 @@ A polished .NET 10 Aspire app foundation for internal tools, admin portals, and 
 
 This application was generated from an enhanced Aspire template. It includes the foundation most teams add early: identity, roles, admin pages, runtime settings, PostgreSQL, Redis, migrations, local email capture, typed DTOs, a Minimal API, a Blazor frontend, and an integration test that starts the distributed app.
 
-Template version: `0.1.12`. The same value is available in `Starter.Shared.TemplateInfo.Version`.
+Template version: `0.1.13`. The same value is available in `Starter.Shared.TemplateInfo.Version`.
 
 | What you need | Already included |
 | --- | --- |

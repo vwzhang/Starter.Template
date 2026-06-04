@@ -1,7 +1,7 @@
 param(
     [string] $TemplateSource = (Join-Path $PSScriptRoot "..\templates\enhanced-aspire-starter"),
     [string] $OutputDirectory = (Join-Path $PSScriptRoot "..\artifacts\vsix"),
-    [string] $Version = "0.1.12",
+    [string] $Version = "0.1.13",
     [string] $Publisher = "vwzhang"
 )
 
@@ -40,8 +40,10 @@ function Write-Utf8NoBom([string] $Path, [string] $Content) {
     [System.IO.File]::WriteAllText($Path, $Content, [System.Text.UTF8Encoding]::new($false))
 }
 
-function Remove-DotNetTemplateConditionDirectives([string] $Content) {
-    $content = $Content -replace '(?m)^[ \t]*//#(if|elseif|else|endif).*(\r?\n)?', ''
+function Convert-DotNetTemplateConditionDirectives([string] $Content) {
+    $content = $Content -replace '(?m)^[ \t]*//#if \(includeSmtp4dev\)\s*$', '$if$ ($ext_aspireadmin_includesmtp4dev$ == True)'
+    $content = $content -replace '(?m)^[ \t]*//#if \(includePgAdmin\)\s*$', '$if$ ($ext_aspireadmin_includepgadmin$ == True)'
+    $content = $content -replace '(?m)^[ \t]*//#endif\s*$', '$endif$'
     $content = $content -replace '(?m)^[ \t]*@\*#(if|elseif|else|endif).*?\*@\s*(\r?\n)?', ''
     $content -replace '(?m)^[ \t]*<!--#(if|elseif|else|endif).*?-->\s*(\r?\n)?', ''
 }
@@ -74,12 +76,348 @@ function Get-VisualStudioSdk {
         }
     }
 
+    $templateWizardInterfacePath = Join-Path $installPath "Common7\IDE\PublicAssemblies\Microsoft.VisualStudio.TemplateWizardInterface.dll"
+    $envDtePath = Join-Path $installPath "Common7\IDE\PublicAssemblies\EnvDTE.dll"
+    $visualStudioInteropPath = Join-Path $installPath "Common7\IDE\PublicAssemblies\Microsoft.VisualStudio.Interop.dll"
+
+    foreach ($path in @($templateWizardInterfacePath, $envDtePath, $visualStudioInteropPath)) {
+        if (-not (Test-Path -LiteralPath $path)) {
+            throw "Required Visual Studio wizard reference was not found: $path"
+        }
+    }
+
     [pscustomobject] @{
         InstallPath = $installPath
         MSBuildPath = $msbuildPath
         VSSDKTargets = $vssdkTargets
         VSToolsPath = $vstoolsPath
+        TemplateWizardInterfacePath = $templateWizardInterfacePath
+        EnvDtePath = $envDtePath
+        VisualStudioInteropPath = $visualStudioInteropPath
     }
+}
+
+function Write-WizardProjectFiles(
+    [string] $WizardDirectory,
+    [string] $TemplateWizardInterfacePath,
+    [string] $EnvDtePath,
+    [string] $VisualStudioInteropPath
+) {
+    New-Item -ItemType Directory -Path $WizardDirectory -Force | Out-Null
+
+    $escapedTemplateWizardInterfacePath = Escape-Xml $TemplateWizardInterfacePath
+    $escapedEnvDtePath = Escape-Xml $EnvDtePath
+    $escapedVisualStudioInteropPath = Escape-Xml $VisualStudioInteropPath
+    $projectFile = @"
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net472</TargetFramework>
+    <AssemblyName>AspireAdminStarter.Wizard</AssemblyName>
+    <RootNamespace>AspireAdminStarter.VisualStudio</RootNamespace>
+    <OutputPath>bin\`$(Configuration)\</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <Nullable>disable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="EnvDTE">
+      <HintPath>$escapedEnvDtePath</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Microsoft.VisualStudio.Interop">
+      <HintPath>$escapedVisualStudioInteropPath</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Microsoft.VisualStudio.TemplateWizardInterface">
+      <HintPath>$escapedTemplateWizardInterfacePath</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+</Project>
+"@
+
+    Write-Utf8NoBom (Join-Path $WizardDirectory "AspireAdminStarter.Wizard.csproj") $projectFile
+
+    $wizardCode = @'
+using System;
+using System.Collections.Generic;
+using System.Drawing;
+using System.Linq;
+using System.Windows.Forms;
+using EnvDTE;
+using Microsoft.VisualStudio.TemplateWizard;
+
+namespace AspireAdminStarter.VisualStudio
+{
+    public sealed class AspireAdminStarterWizard : IWizard
+    {
+        public void RunStarted(
+            object automationObject,
+            Dictionary<string, string> replacementsDictionary,
+            WizardRunKind runKind,
+            object[] customParams)
+        {
+            var projectName = GetReplacement(replacementsDictionary, "$safeprojectname$", "MyAspireAdmin");
+            var defaultDatabaseName = ToResourceName(projectName) + "db";
+
+            using (var form = new OptionsForm(defaultDatabaseName))
+            {
+                if (form.ShowDialog() != DialogResult.OK)
+                {
+                    throw new WizardCancelledException("Aspire Admin Starter creation was canceled.");
+                }
+
+                SetReplacement(replacementsDictionary, "$aspireadmin_databasename$", form.DatabaseName);
+                SetReplacement(replacementsDictionary, "$aspireadmin_includepgadmin$", ToTemplateBoolean(form.IncludePgAdmin));
+                SetReplacement(replacementsDictionary, "$aspireadmin_includesmtp4dev$", ToTemplateBoolean(form.IncludeSmtp4dev));
+                SetReplacement(replacementsDictionary, "$aspireadmin_seedcatalogsampledatavalue$", form.SeedSampleData ? "true" : "false");
+                SetReplacement(replacementsDictionary, "$aspireadmin_seeddevelopmenttestusersvalue$", form.SeedUsers ? "true" : "false");
+            }
+        }
+
+        public void ProjectFinishedGenerating(Project project)
+        {
+        }
+
+        public void ProjectItemFinishedGenerating(ProjectItem projectItem)
+        {
+        }
+
+        public bool ShouldAddProjectItem(string filePath)
+        {
+            return true;
+        }
+
+        public void BeforeOpeningFile(ProjectItem projectItem)
+        {
+        }
+
+        public void RunFinished()
+        {
+        }
+
+        private static string GetReplacement(
+            IDictionary<string, string> replacements,
+            string key,
+            string fallback)
+        {
+            string value;
+            return replacements.TryGetValue(key, out value) && !string.IsNullOrWhiteSpace(value)
+                ? value
+                : fallback;
+        }
+
+        private static void SetReplacement(
+            IDictionary<string, string> replacements,
+            string key,
+            string value)
+        {
+            if (replacements.ContainsKey(key))
+            {
+                replacements[key] = value;
+                return;
+            }
+
+            replacements.Add(key, value);
+        }
+
+        private static string ToTemplateBoolean(bool value)
+        {
+            return value ? "True" : "False";
+        }
+
+        private static string ToResourceName(string value)
+        {
+            var characters = value
+                .Where(char.IsLetterOrDigit)
+                .Select(char.ToLowerInvariant)
+                .ToArray();
+
+            return characters.Length == 0 ? "app" : new string(characters);
+        }
+    }
+
+    internal sealed class OptionsForm : Form
+    {
+        private readonly TextBox databaseNameTextBox;
+        private readonly CheckBox includePgAdminCheckBox;
+        private readonly CheckBox includeSmtp4devCheckBox;
+        private readonly CheckBox seedUsersCheckBox;
+        private readonly CheckBox seedSampleDataCheckBox;
+
+        public OptionsForm(string defaultDatabaseName)
+        {
+            Text = "Aspire Admin Starter options";
+            StartPosition = FormStartPosition.CenterScreen;
+            FormBorderStyle = FormBorderStyle.FixedDialog;
+            MinimizeBox = false;
+            MaximizeBox = false;
+            ShowInTaskbar = false;
+            ClientSize = new Size(520, 350);
+
+            var titleLabel = new Label
+            {
+                Text = "Choose starter options",
+                Font = new Font(Font.FontFamily, 12, FontStyle.Bold),
+                AutoSize = true,
+                Location = new Point(18, 16)
+            };
+
+            var descriptionLabel = new Label
+            {
+                Text = "These options match the dotnet new template switches and are applied to the generated Aspire solution.",
+                AutoSize = false,
+                Location = new Point(18, 46),
+                Size = new Size(480, 38)
+            };
+
+            var databaseNameLabel = new Label
+            {
+                Text = "Database name",
+                AutoSize = true,
+                Location = new Point(18, 96)
+            };
+
+            databaseNameTextBox = new TextBox
+            {
+                Text = defaultDatabaseName,
+                Location = new Point(18, 118),
+                Size = new Size(470, 23)
+            };
+
+            includePgAdminCheckBox = new CheckBox
+            {
+                Text = "Include pgAdmin",
+                Checked = true,
+                AutoSize = true,
+                Location = new Point(18, 158)
+            };
+
+            includeSmtp4devCheckBox = new CheckBox
+            {
+                Text = "Include smtp4dev local email capture",
+                Checked = true,
+                AutoSize = true,
+                Location = new Point(18, 188)
+            };
+
+            seedUsersCheckBox = new CheckBox
+            {
+                Text = "Seed admin, manager, and user test accounts",
+                Checked = true,
+                AutoSize = true,
+                Location = new Point(18, 218)
+            };
+
+            seedSampleDataCheckBox = new CheckBox
+            {
+                Text = "Seed catalog sample data",
+                Checked = true,
+                AutoSize = true,
+                Location = new Point(18, 248)
+            };
+
+            var okButton = new Button
+            {
+                Text = "Create",
+                DialogResult = DialogResult.OK,
+                Location = new Point(318, 300),
+                Size = new Size(80, 28)
+            };
+            okButton.Click += ValidateAndClose;
+
+            var cancelButton = new Button
+            {
+                Text = "Cancel",
+                DialogResult = DialogResult.Cancel,
+                Location = new Point(408, 300),
+                Size = new Size(80, 28)
+            };
+
+            Controls.AddRange(new Control[]
+            {
+                titleLabel,
+                descriptionLabel,
+                databaseNameLabel,
+                databaseNameTextBox,
+                includePgAdminCheckBox,
+                includeSmtp4devCheckBox,
+                seedUsersCheckBox,
+                seedSampleDataCheckBox,
+                okButton,
+                cancelButton
+            });
+
+            AcceptButton = okButton;
+            CancelButton = cancelButton;
+        }
+
+        public string DatabaseName
+        {
+            get { return NormalizeDatabaseName(databaseNameTextBox.Text); }
+        }
+
+        public bool IncludePgAdmin
+        {
+            get { return includePgAdminCheckBox.Checked; }
+        }
+
+        public bool IncludeSmtp4dev
+        {
+            get { return includeSmtp4devCheckBox.Checked; }
+        }
+
+        public bool SeedUsers
+        {
+            get { return seedUsersCheckBox.Checked; }
+        }
+
+        public bool SeedSampleData
+        {
+            get { return seedSampleDataCheckBox.Checked; }
+        }
+
+        private void ValidateAndClose(object sender, EventArgs e)
+        {
+            var databaseName = NormalizeDatabaseName(databaseNameTextBox.Text);
+
+            if (string.IsNullOrWhiteSpace(databaseName))
+            {
+                MessageBox.Show(
+                    this,
+                    "Enter a database name. Use letters, numbers, underscore, or hyphen.",
+                    "Aspire Admin Starter",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+                DialogResult = DialogResult.None;
+                return;
+            }
+
+            databaseNameTextBox.Text = databaseName;
+        }
+
+        private static string NormalizeDatabaseName(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return string.Empty;
+            }
+
+            var characters = value
+                .Trim()
+                .Where(character => char.IsLetterOrDigit(character) || character == '_' || character == '-')
+                .ToArray();
+
+            return new string(characters);
+        }
+    }
+}
+'@
+
+    Write-Utf8NoBom (Join-Path $WizardDirectory "AspireAdminStarterWizard.cs") $wizardCode
 }
 
 function New-ZipFromDirectoryContent([string] $SourceDirectory, [string] $DestinationPath) {
@@ -227,11 +565,13 @@ function Convert-ToTemplateTokenizedFiles([string] $Root) {
         }
 
         $content = [System.IO.File]::ReadAllText($file.FullName)
-        $content = Remove-DotNetTemplateConditionDirectives $content
+        $content = Convert-DotNetTemplateConditionDirectives $content
+        $content = $content.Replace('const string SeedCatalogSampleDataValue = "true";', 'const string SeedCatalogSampleDataValue = "$ext_aspireadmin_seedcatalogsampledatavalue$";')
+        $content = $content.Replace('const string SeedDevelopmentTestUsersValue = "true";', 'const string SeedDevelopmentTestUsersValue = "$ext_aspireadmin_seeddevelopmenttestusersvalue$";')
         $content = $content.Replace("f6e76cbf-2d79-4b8b-9023-113ac10e07f9", '$guid1$')
         $content = $content.Replace("vwzhang", '$registeredorganization$')
         $content = $content.Replace("starterDb", '$ext_safeprojectname$Db')
-        $content = $content.Replace("starterdb", '$ext_safeprojectname$db')
+        $content = $content.Replace("starterdb", '$ext_aspireadmin_databasename$')
         $content = $content.Replace("starter.local", '$ext_safeprojectname$.local')
         $content = $content.Replace("starter-", '$ext_safeprojectname$-')
         $content = $content.Replace("Starter", '$ext_safeprojectname$')
@@ -315,7 +655,7 @@ function New-ProjectTemplateFile(
 
         $writer.WriteStartElement("TemplateData")
         $shortProjectName = $ProjectName.Replace("Starter.", "")
-        $writer.WriteElementString("Name", "Enhanced Aspire Starter $shortProjectName")
+        $writer.WriteElementString("Name", "Aspire Admin Starter $shortProjectName")
         $writer.WriteElementString("Description", $Description)
         $writer.WriteElementString("ProjectType", "CSharp")
         $writer.WriteElementString("Hidden", "true")
@@ -346,8 +686,8 @@ function Write-RootTemplate([string] $Path) {
 <?xml version="1.0" encoding="utf-8"?>
 <VSTemplate Version="3.0.0" Type="ProjectGroup" xmlns="http://schemas.microsoft.com/developer/vstemplate/2005">
   <TemplateData>
-    <Name>Enhanced Aspire Starter</Name>
-    <Description>Opinionated .NET Aspire starter with Blazor, Identity, PostgreSQL, Redis, pgAdmin, smtp4dev, migrations, admin modules, system settings, and a CRUD sample.</Description>
+    <Name>Aspire Admin Starter</Name>
+    <Description>Opinionated .NET Aspire admin starter with Blazor, Identity, PostgreSQL, Redis, pgAdmin, smtp4dev, migrations, admin modules, system settings, and a CRUD sample.</Description>
     <ProjectType>CSharp</ProjectType>
     <LanguageTag>csharp</LanguageTag>
     <PlatformTag>windows</PlatformTag>
@@ -359,7 +699,7 @@ function Write-RootTemplate([string] $Path) {
     <ProjectTypeTag>Aspire</ProjectTypeTag>
     <ProjectTypeTag>Blazor</ProjectTypeTag>
     <ProjectTypeTag>.NET</ProjectTypeTag>
-    <DefaultName>MyAspireStarter</DefaultName>
+    <DefaultName>MyAspireAdmin</DefaultName>
     <CreateNewFolder>false</CreateNewFolder>
     <CreateInPlace>true</CreateInPlace>
     <ProvideDefaultName>true</ProvideDefaultName>
@@ -377,6 +717,10 @@ function Write-RootTemplate([string] $Path) {
       <ProjectTemplateLink ProjectName="$safeprojectname$.Web" CopyParameters="true">Starter.Web\Starter.Web.vstemplate</ProjectTemplateLink>
     </ProjectCollection>
   </TemplateContent>
+  <WizardExtension>
+    <Assembly>AspireAdminStarter.Wizard</Assembly>
+    <FullClassName>AspireAdminStarter.VisualStudio.AspireAdminStarterWizard</FullClassName>
+  </WizardExtension>
 </VSTemplate>
 '@
     Write-Utf8NoBom $Path $content
@@ -388,12 +732,12 @@ function Write-VsixManifest([string] $Path, [string] $Version, [string] $Publish
 <PackageManifest Version="2.0.0" xmlns="http://schemas.microsoft.com/developer/vsx-schema/2011">
   <Metadata>
     <Identity Id="Vwzhang.EnhancedAspireStarter.VisualStudio" Version="$Version" Language="en-US" Publisher="$Publisher" />
-    <DisplayName>Enhanced Aspire Starter</DisplayName>
-    <Description xml:space="preserve">Visual Studio project template for an enhanced .NET Aspire starter with Blazor, Identity, PostgreSQL, Redis, pgAdmin, smtp4dev, migrations, admin modules, system settings, and a CRUD sample.</Description>
+    <DisplayName>Aspire Admin Starter</DisplayName>
+    <Description xml:space="preserve">Visual Studio project template for an Aspire admin starter with Blazor, Identity, PostgreSQL, Redis, pgAdmin, smtp4dev, migrations, admin modules, system settings, and a CRUD sample.</Description>
     <MoreInfo>https://github.com/vwzhang/Starter.Template</MoreInfo>
     <License>Resources\LICENSE.txt</License>
     <ReleaseNotes>Resources\ReleaseNotes.txt</ReleaseNotes>
-    <Tags>Aspire; .NET; Blazor; ASP.NET Core; Identity; PostgreSQL; Redis; pgAdmin; smtp4dev; Project Template</Tags>
+    <Tags>Aspire; .NET; Blazor; ASP.NET Core; Identity; PostgreSQL; Redis; pgAdmin; smtp4dev; Admin; Project Template</Tags>
   </Metadata>
   <Installation>
     <InstallationTarget Id="Microsoft.VisualStudio.Community" Version="[17.0,19.0)">
@@ -411,6 +755,7 @@ function Write-VsixManifest([string] $Path, [string] $Version, [string] $Publish
   </Dependencies>
   <Assets>
     <Asset Type="Microsoft.VisualStudio.ProjectTemplate" Path="ProjectTemplates\CSharp" />
+    <Asset Type="Microsoft.VisualStudio.Assembly" Path="AspireAdminStarter.Wizard.dll" AssemblyName="AspireAdminStarter.Wizard" />
   </Assets>
   <Prerequisites>
     <Prerequisite Id="Microsoft.VisualStudio.Component.CoreEditor" Version="[17.0,19.0)" DisplayName="Visual Studio core editor" />
@@ -449,6 +794,7 @@ function Write-VsixProjectFile(
     </ZipProject>
     <Content Include="Resources\LICENSE.txt" IncludeInVSIX="true" VSIXSubPath="Resources" />
     <Content Include="Resources\ReleaseNotes.txt" IncludeInVSIX="true" VSIXSubPath="Resources" />
+    <Content Include="AspireAdminStarter.Wizard.dll" IncludeInVSIX="true" />
   </ItemGroup>
   <Import Project="$escapedTargets" />
 </Project>
@@ -462,6 +808,8 @@ $outputPath = Resolve-FullPath $OutputDirectory
 $workPath = Join-Path $outputPath "obj"
 $templateRoot = Join-Path $workPath "EnhancedAspireStarter"
 $vsixProjectRoot = Join-Path $workPath "vsix-project"
+$wizardProjectRoot = Join-Path $vsixProjectRoot "Wizard"
+$wizardBuildOutput = Join-Path $wizardProjectRoot "bin\Release\AspireAdminStarter.Wizard.dll"
 $vsixProjectTemplateRoot = Join-Path $vsixProjectRoot "ProjectTemplates\CSharp\Aspire\EnhancedAspireStarter"
 $templateZip = Join-Path $vsixProjectRoot "ProjectTemplates\CSharp\Aspire\EnhancedAspireStarter.zip"
 $vsixBuildOutput = Join-Path $vsixProjectRoot "bin\Release\EnhancedAspireStarter.VisualStudio.vsix"
@@ -514,7 +862,26 @@ foreach ($project in $projects) {
 New-ZipFromDirectoryContent $templateRoot $templateZip
 Copy-Item -LiteralPath $templateRoot -Destination $vsixProjectTemplateRoot -Recurse -Force
 Copy-Item -LiteralPath (Join-Path $templateSourcePath "LICENSE") -Destination (Join-Path $vsixProjectRoot "Resources\LICENSE.txt") -Force
-Write-Utf8NoBom (Join-Path $vsixProjectRoot "Resources\ReleaseNotes.txt") "Initial Visual Studio Marketplace package for the Enhanced Aspire Starter project template."
+Write-Utf8NoBom (Join-Path $vsixProjectRoot "Resources\ReleaseNotes.txt") "Aspire Admin Starter project template with Visual Studio options."
+Write-WizardProjectFiles $wizardProjectRoot $visualStudioSdk.TemplateWizardInterfacePath $visualStudioSdk.EnvDtePath $visualStudioSdk.VisualStudioInteropPath
+
+$wizardBuildArguments = @(
+    (Join-Path $wizardProjectRoot "AspireAdminStarter.Wizard.csproj"),
+    "/restore",
+    "/p:Configuration=Release",
+    "/v:minimal"
+)
+
+& $visualStudioSdk.MSBuildPath @wizardBuildArguments
+if ($LASTEXITCODE -ne 0) {
+    throw "Wizard build failed with exit code $LASTEXITCODE."
+}
+
+if (-not (Test-Path -LiteralPath $wizardBuildOutput)) {
+    throw "Wizard build completed but output was not found: $wizardBuildOutput"
+}
+
+Copy-Item -LiteralPath $wizardBuildOutput -Destination (Join-Path $vsixProjectRoot "AspireAdminStarter.Wizard.dll") -Force
 Write-VsixManifest (Join-Path $vsixProjectRoot "source.extension.vsixmanifest") $Version $Publisher
 Write-VsixProjectFile (Join-Path $vsixProjectRoot "EnhancedAspireStarter.VisualStudio.csproj") $visualStudioSdk.VSSDKTargets
 

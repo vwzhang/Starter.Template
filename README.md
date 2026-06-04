@@ -1,4 +1,4 @@
-# Enhanced Aspire Starter Template
+# Aspire Admin Starter Template
 
 ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4)
 ![Aspire](https://img.shields.io/badge/Aspire-13.4-5C2D91)
@@ -6,7 +6,7 @@
 ![Visual Studio](https://img.shields.io/badge/Visual%20Studio-VSIX-5C2D91)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-Installable templates for creating a polished .NET 10 Aspire application foundation with Blazor, ASP.NET Core Identity, PostgreSQL, Redis, pgAdmin, smtp4dev, a migration service, admin modules, system settings, shared DTOs, and a database-backed CRUD sample.
+Installable templates for creating a polished .NET 10 Aspire admin application foundation with Blazor, ASP.NET Core Identity, PostgreSQL, Redis, pgAdmin, smtp4dev, a migration service, admin modules, system settings, shared DTOs, and a database-backed CRUD sample.
 
 Use the CLI template when you want options. Use the VSIX when you want a Visual Studio New Project experience with the complete default starter.
 
@@ -31,19 +31,19 @@ dotnet pack
 Current local package:
 
 ```text
-bin\Release\Vwzhang.EnhancedAspireStarter.Templates.0.1.12.nupkg
+bin\Release\Vwzhang.EnhancedAspireStarter.Templates.0.1.13.nupkg
 ```
 
 ## Install Locally
 
 ```powershell
-dotnet new install .\bin\Release\Vwzhang.EnhancedAspireStarter.Templates.0.1.12.nupkg
+dotnet new install .\bin\Release\Vwzhang.EnhancedAspireStarter.Templates.0.1.13.nupkg
 ```
 
 Confirm the template is visible:
 
 ```powershell
-dotnet new enhanced-aspire-starter --help
+dotnet new aspire-admin-starter --help
 ```
 
 ## Create A New App
@@ -51,7 +51,7 @@ dotnet new enhanced-aspire-starter --help
 ```powershell
 mkdir C:\Code\AcmeOps
 cd C:\Code\AcmeOps
-dotnet new enhanced-aspire-starter -n AcmeOps
+dotnet new aspire-admin-starter -n AcmeOps
 dotnet build AcmeOps.slnx
 aspire start --apphost AcmeOps.AppHost\AcmeOps.AppHost.csproj
 ```
@@ -69,7 +69,7 @@ The generated app opens with:
 ## Template Options
 
 ```powershell
-dotnet new enhanced-aspire-starter `
+dotnet new aspire-admin-starter `
   -n AcmeOps `
   --database-name acmeopsdb `
   --include-pgadmin true `
@@ -90,13 +90,13 @@ Useful examples:
 
 ```powershell
 mkdir C:\Code\BackOffice; cd C:\Code\BackOffice
-dotnet new enhanced-aspire-starter -n BackOffice --database-name backoffice
+dotnet new aspire-admin-starter -n BackOffice --database-name backoffice
 
 mkdir C:\Code\LeanApi; cd C:\Code\LeanApi
-dotnet new enhanced-aspire-starter -n LeanApi --include-pgadmin false --include-smtp4dev false
+dotnet new aspire-admin-starter -n LeanApi --include-pgadmin false --include-smtp4dev false
 
 mkdir C:\Code\CleanStart; cd C:\Code\CleanStart
-dotnet new enhanced-aspire-starter -n CleanStart --seed-users false --seed-sample-data false
+dotnet new aspire-admin-starter -n CleanStart --seed-users false --seed-sample-data false
 ```
 
 ## Default Test Accounts
@@ -120,10 +120,10 @@ Build the VSIX:
 Output:
 
 ```text
-artifacts\vsix\EnhancedAspireStarter.VisualStudio.0.1.12.vsix
+artifacts\vsix\EnhancedAspireStarter.VisualStudio.0.1.13.vsix
 ```
 
-Install it, restart Visual Studio, then search for `Enhanced Aspire Starter` in the New Project dialog.
+Install it, restart Visual Studio, then search for `Aspire Admin Starter` in the New Project dialog. After you click Create, the template displays an options page for database name, pgAdmin, smtp4dev, and seed data.
 
 The VSIX currently generates the complete default starter. The CLI package is the best path when you need the generation options.
 
@@ -132,7 +132,7 @@ The VSIX currently generates the complete default starter. The CLI package is th
 After changing the source starter app, run:
 
 ```powershell
-.\scripts\Update-Template.ps1 -SourceRepository C:\Aspire\Starter -TemplateVersion 0.1.12
+.\scripts\Update-Template.ps1 -SourceRepository C:\Aspire\Starter -TemplateVersion 0.1.13
 ```
 
 The helper:
@@ -149,14 +149,14 @@ The helper:
 Recommended checks before publishing a new template version:
 
 ```powershell
-dotnet new install .\bin\Release\Vwzhang.EnhancedAspireStarter.Templates.0.1.12.nupkg --force
+dotnet new install .\bin\Release\Vwzhang.EnhancedAspireStarter.Templates.0.1.13.nupkg --force
 mkdir C:\Temp\SmokeApp
 cd C:\Temp\SmokeApp
-dotnet new enhanced-aspire-starter -n SmokeApp --force
+dotnet new aspire-admin-starter -n SmokeApp --force
 dotnet build C:\Temp\SmokeApp\SmokeApp.slnx
 mkdir C:\Temp\SlimApp
 cd C:\Temp\SlimApp
-dotnet new enhanced-aspire-starter -n SlimApp --include-pgadmin false --include-smtp4dev false --seed-users false --seed-sample-data false --force
+dotnet new aspire-admin-starter -n SlimApp --include-pgadmin false --include-smtp4dev false --seed-users false --seed-sample-data false --force
 dotnet build C:\Temp\SlimApp\SlimApp.slnx
 ```
 
