@@ -104,6 +104,24 @@ foreach ($id in $instanceIds) {
     if (Test-Path -LiteralPath $templateEngineHostRoot) {
         Remove-DirectoryIfSafe $templateEngineHostRoot $instanceRoot
     }
+
+    foreach ($cacheFile in Get-ChildItem -LiteralPath $instanceRoot -File -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -like "NpdProjectTemplateCache*" -or $_.Name -eq "InstalledTemplates.json" }) {
+        $resolvedPath = Resolve-FullPath $cacheFile.FullName
+        $resolvedRoot = (Resolve-FullPath $instanceRoot).TrimEnd("\", "/") + "\"
+
+        if (-not $resolvedPath.StartsWith($resolvedRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+            throw "Refusing to remove '$resolvedPath' because it is outside '$resolvedRoot'."
+        }
+
+        Remove-Item -LiteralPath $resolvedPath -Force
+        Write-Host "Removed $resolvedPath"
+    }
+
+    foreach ($cacheDirectory in Get-ChildItem -LiteralPath $instanceRoot -Directory -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -like "ProjectTemplatesCache_*" }) {
+        Remove-DirectoryIfSafe $cacheDirectory.FullName $instanceRoot
+    }
 }
 
 Write-Host "Visual Studio template cache cleanup completed."

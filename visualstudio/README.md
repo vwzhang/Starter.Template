@@ -17,7 +17,7 @@ Requires Visual Studio with the Visual Studio extension development workload.
 Output:
 
 ```text
-artifacts\vsix\EnhancedAspireStarter.VisualStudio.0.1.20.vsix
+artifacts\vsix\EnhancedAspireStarter.VisualStudio.0.1.21.vsix
 ```
 
 Double-click the VSIX to install it locally. Restart Visual Studio, then search for `Enhanced Aspire Starter` in the New Project dialog.
@@ -29,10 +29,11 @@ After project creation, the wizard cleans provider-specific template blocks and 
 If an older template name such as `Aspire Admin Starter` still appears, close Visual Studio and clear the local VS template cache:
 
 ```powershell
+dotnet new uninstall Vwzhang.EnhancedAspireStarter.Templates
 .\visualstudio\Clear-VisualStudioTemplateCache.ps1
 ```
 
-Then install the latest VSIX again and restart Visual Studio. This removes stale per-user VSIX folders and Visual Studio Template Cache entries for this template only.
+Then install the latest VSIX again and restart Visual Studio. This removes stale per-user VSIX folders and Visual Studio Template Cache entries for this template only. The uninstall command removes older CLI template packages that can appear in Visual Studio without the VSIX options dialog.
 
 ## Publish
 
@@ -50,7 +51,7 @@ The publish script finds `VsixPublisher.exe` through Visual Studio SDK installat
 After changing the source starter app:
 
 ```powershell
-.\scripts\Update-Template.ps1 -SourceRepository C:\Aspire\Starter -TemplateVersion 0.1.20
+.\scripts\Update-Template.ps1 -SourceRepository C:\Aspire\Starter -TemplateVersion 0.1.21
 ```
 
 Use the generated app's `*.Shared\TemplateInfo.cs` file to confirm which template version Visual Studio used.
