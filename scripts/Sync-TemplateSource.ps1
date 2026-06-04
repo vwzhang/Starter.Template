@@ -1,7 +1,7 @@
 param(
     [string] $SourceRepository = "C:\Aspire\Starter",
     [string] $TemplateContent = "C:\Aspire\Starter.Template\templates\enhanced-aspire-starter",
-    [string] $TemplateVersion = "0.1.27"
+    [string] $TemplateVersion = "0.1.28"
 )
 
 $ErrorActionPreference = "Stop"
