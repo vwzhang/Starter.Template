@@ -31,7 +31,7 @@ Pass `/p:VisualStudioVsixVersion=0.1.25` when you want to build a one-off versio
 Output:
 
 ```text
-artifacts\vsix\EnhancedAspireStarter.VisualStudio.0.1.32.vsix
+artifacts\vsix\EnhancedAspireStarter.VisualStudio.0.1.33.vsix
 ```
 
 Double-click the VSIX to install it locally. Restart Visual Studio, then search for `Aspire Admin Starter` in the New Project dialog.
@@ -65,7 +65,7 @@ The publish script finds `VsixPublisher.exe` through Visual Studio SDK installat
 After changing the source starter app:
 
 ```powershell
-.\scripts\Update-Template.ps1 -SourceRepository C:\Aspire\Starter -TemplateVersion 0.1.32
+.\scripts\Update-Template.ps1 -SourceRepository C:\Aspire\Starter -TemplateVersion 0.1.33
 ```
 
 Use the generated app's `*.Shared\TemplateInfo.cs` file to confirm which template version Visual Studio used.
