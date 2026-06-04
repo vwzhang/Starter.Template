@@ -24,7 +24,7 @@
 
   <Target Name="BuildEnhancedAspireStarterVsix" AfterTargets="Build" Condition="'$(BuildVsixOnBuild)' == 'true'">
     <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(VsixBuildScript)&quot;$(BuildVsixVersionArgument)" />
-    <Message Importance="High" Text="Enhanced Aspire Starter VSIX artifacts were written to $(VsixArtifactsDirectory)." />
+    <Message Importance="High" Text="Aspire Admin Starter VSIX artifacts were written to $(VsixArtifactsDirectory)." />
   </Target>
 
   <Target Name="CleanEnhancedAspireStarterVsix" AfterTargets="Clean">

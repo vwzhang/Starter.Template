@@ -5,7 +5,7 @@
     "build"
   ],
   "identity": {
-    "internalName": "enhanced-aspire-starter"
+    "internalName": "aspire-admin-starter"
   },
   "overview": "overview.md",
   "priceCategory": "free",

@@ -1,7 +1,7 @@
 param(
     [string] $SourceRepository = "C:\Aspire\Starter",
     [string] $TemplateContent = "C:\Aspire\Starter.Template\templates\enhanced-aspire-starter",
-    [string] $TemplateVersion = "0.1.23"
+    [string] $TemplateVersion = "0.1.24"
 )
 
 $ErrorActionPreference = "Stop"
@@ -94,7 +94,7 @@ namespace Starter.Shared;
 
 public static class TemplateInfo
 {
-    public const string Name = "Enhanced Aspire St" + "arter";
+    public const string Name = "Aspire Admin St" + "arter";
     public const string Version = "$TemplateVersion";
 }
 "@

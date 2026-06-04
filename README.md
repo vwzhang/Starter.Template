@@ -1,4 +1,4 @@
-# Enhanced Aspire Starter Template
+# Aspire Admin Starter Template
 
 ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4)
 ![Aspire](https://img.shields.io/badge/Aspire-13.4-5C2D91)
@@ -31,19 +31,19 @@ dotnet pack
 Current local package:
 
 ```text
-bin\Release\Vwzhang.EnhancedAspireStarter.Templates.0.1.23.nupkg
+bin\Release\Vwzhang.AspireAdminStarter.Templates.0.1.24.nupkg
 ```
 
 ## Install Locally
 
 ```powershell
-dotnet new install .\bin\Release\Vwzhang.EnhancedAspireStarter.Templates.0.1.23.nupkg
+dotnet new install .\bin\Release\Vwzhang.AspireAdminStarter.Templates.0.1.24.nupkg
 ```
 
 Confirm the template is visible:
 
 ```powershell
-dotnet new enhanced-aspire-starter --help
+dotnet new aspire-admin-starter --help
 ```
 
 Visual Studio 2026 also reads installed `dotnet new` template packages. This is the preferred native Visual Studio path because it uses the `.NET Core Template Provider` and shows the template options from `.template.config\ide.host.json` in the New Project flow.
@@ -53,7 +53,7 @@ Visual Studio 2026 also reads installed `dotnet new` template packages. This is 
 ```powershell
 mkdir C:\Code\AcmeOps
 cd C:\Code\AcmeOps
-dotnet new enhanced-aspire-starter -n AcmeOps
+dotnet new aspire-admin-starter -n AcmeOps
 dotnet build AcmeOps.slnx
 aspire start --apphost AcmeOps.AppHost\AcmeOps.AppHost.csproj
 ```
@@ -71,7 +71,7 @@ The generated app opens with:
 ## Template Options
 
 ```powershell
-dotnet new enhanced-aspire-starter `
+dotnet new aspire-admin-starter `
   -n AcmeOps `
   --databaseProvider PostgreSql `
   --database-name acmeopsdb `
@@ -94,16 +94,16 @@ Useful examples:
 
 ```powershell
 mkdir C:\Code\BackOffice; cd C:\Code\BackOffice
-dotnet new enhanced-aspire-starter -n BackOffice --database-name backoffice
+dotnet new aspire-admin-starter -n BackOffice --database-name backoffice
 
 mkdir C:\Code\LeanApi; cd C:\Code\LeanApi
-dotnet new enhanced-aspire-starter -n LeanApi --include-pgadmin false --include-smtp4dev false
+dotnet new aspire-admin-starter -n LeanApi --include-pgadmin false --include-smtp4dev false
 
 mkdir C:\Code\SqlBackOffice; cd C:\Code\SqlBackOffice
-dotnet new enhanced-aspire-starter -n SqlBackOffice --databaseProvider SqlServer --include-pgadmin false
+dotnet new aspire-admin-starter -n SqlBackOffice --databaseProvider SqlServer --include-pgadmin false
 
 mkdir C:\Code\CleanStart; cd C:\Code\CleanStart
-dotnet new enhanced-aspire-starter -n CleanStart --seed-users false --seed-sample-data false
+dotnet new aspire-admin-starter -n CleanStart --seed-users false --seed-sample-data false
 ```
 
 ## Default Test Accounts
@@ -132,22 +132,22 @@ Or open and build the dedicated Visual Studio packaging solution:
 dotnet build .\visualstudio\EnhancedAspireStarter.VisualStudio.slnx
 ```
 
-Pass `/p:VisualStudioVsixVersion=0.1.23` to build a one-off VSIX version.
+Pass `/p:VisualStudioVsixVersion=0.1.25` to build a one-off VSIX version.
 
 Output:
 
 ```text
-artifacts\vsix\EnhancedAspireStarter.VisualStudio.0.1.23.vsix
+artifacts\vsix\EnhancedAspireStarter.VisualStudio.0.1.24.vsix
 ```
 
-Install it, restart Visual Studio, then search for `Enhanced Aspire Starter` in the New Project dialog. After you click Create, the template displays an options page for database provider, database name, pgAdmin, smtp4dev, and seed data.
+Install it, restart Visual Studio, then search for `Aspire Admin Starter` in the New Project dialog. After you click Create, the template displays an options page for database provider, database name, pgAdmin, smtp4dev, and seed data.
 
 Selecting SQL Server disables pgAdmin because pgAdmin only applies to PostgreSQL. SQL Server apps run a SQL Server container and can be inspected from SSMS or Azure Data Studio on the host.
 
 If Visual Studio still shows an older template name after installing a newer VSIX, close Visual Studio and run:
 
 ```powershell
-dotnet new uninstall Vwzhang.EnhancedAspireStarter.Templates
+dotnet new uninstall Vwzhang.AspireAdminStarter.Templates
 .\visualstudio\Clear-VisualStudioTemplateCache.ps1
 ```
 
@@ -158,7 +158,7 @@ Install the latest VSIX again after the cleanup.
 After changing the source starter app, run:
 
 ```powershell
-.\scripts\Update-Template.ps1 -SourceRepository C:\Aspire\Starter -TemplateVersion 0.1.23
+.\scripts\Update-Template.ps1 -SourceRepository C:\Aspire\Starter -TemplateVersion 0.1.24
 ```
 
 The helper:
@@ -175,18 +175,18 @@ The helper:
 Recommended checks before publishing a new template version:
 
 ```powershell
-dotnet new install .\bin\Release\Vwzhang.EnhancedAspireStarter.Templates.0.1.23.nupkg --force
+dotnet new install .\bin\Release\Vwzhang.AspireAdminStarter.Templates.0.1.24.nupkg --force
 mkdir C:\Temp\SmokeApp
 cd C:\Temp\SmokeApp
-dotnet new enhanced-aspire-starter -n SmokeApp --no-restore --force
+dotnet new aspire-admin-starter -n SmokeApp --no-restore --force
 dotnet build C:\Temp\SmokeApp\SmokeApp.slnx
 mkdir C:\Temp\SqlSmokeApp
 cd C:\Temp\SqlSmokeApp
-dotnet new enhanced-aspire-starter -n SqlSmokeApp --databaseProvider SqlServer --include-pgadmin false --no-restore --force
+dotnet new aspire-admin-starter -n SqlSmokeApp --databaseProvider SqlServer --include-pgadmin false --no-restore --force
 dotnet build C:\Temp\SqlSmokeApp\SqlSmokeApp.slnx
 mkdir C:\Temp\SlimApp
 cd C:\Temp\SlimApp
-dotnet new enhanced-aspire-starter -n SlimApp --include-pgadmin false --include-smtp4dev false --seed-users false --seed-sample-data false --no-restore --force
+dotnet new aspire-admin-starter -n SlimApp --include-pgadmin false --include-smtp4dev false --seed-users false --seed-sample-data false --no-restore --force
 dotnet build C:\Temp\SlimApp\SlimApp.slnx
 ```
 

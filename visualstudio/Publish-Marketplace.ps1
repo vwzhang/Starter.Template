@@ -1,5 +1,5 @@
 param(
-    [string] $VsixPath = (Join-Path $PSScriptRoot "..\artifacts\vsix\EnhancedAspireStarter.VisualStudio.0.1.23.vsix"),
+    [string] $VsixPath = (Join-Path $PSScriptRoot "..\artifacts\vsix\EnhancedAspireStarter.VisualStudio.0.1.24.vsix"),
     [string] $PublishManifest = (Join-Path $PSScriptRoot "marketplace.publish.json"),
     [string] $PublisherName = "vwzhang",
     [string] $PersonalAccessToken = $env:VS_MARKETPLACE_PAT,

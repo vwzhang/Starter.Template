@@ -1,6 +1,6 @@
 param(
     [string] $SourceRepository = (Join-Path $PSScriptRoot "..\..\Starter"),
-    [string] $TemplateVersion = "0.1.23",
+    [string] $TemplateVersion = "0.1.24",
     [string] $Configuration = "Release",
     [switch] $SkipSync
 )
@@ -47,7 +47,7 @@ namespace Starter.Shared;
 
 public static class TemplateInfo
 {
-    public const string Name = "Enhanced Aspire St" + "arter";
+    public const string Name = "Aspire Admin St" + "arter";
     public const string Version = "$TemplateVersion";
 }
 "@
@@ -80,7 +80,7 @@ Update-TextFile (Join-Path $repoRoot "visualstudio\Publish-Marketplace.ps1") {
 
 Update-TextFile (Join-Path $repoRoot "README.md") {
     param($content)
-    $content = $content -replace 'Vwzhang\.EnhancedAspireStarter\.Templates\.[0-9]+\.[0-9]+\.[0-9]+\.nupkg', "Vwzhang.EnhancedAspireStarter.Templates.$TemplateVersion.nupkg"
+    $content = $content -replace 'Vwzhang\.(EnhancedAspireStarter|AspireAdminStarter)\.Templates\.[0-9]+\.[0-9]+\.[0-9]+\.nupkg', "Vwzhang.AspireAdminStarter.Templates.$TemplateVersion.nupkg"
     $content = $content -replace 'EnhancedAspireStarter\.VisualStudio\.[0-9]+\.[0-9]+\.[0-9]+\.vsix', "EnhancedAspireStarter.VisualStudio.$TemplateVersion.vsix"
     $content -replace '-TemplateVersion [0-9]+\.[0-9]+\.[0-9]+', "-TemplateVersion $TemplateVersion"
 }

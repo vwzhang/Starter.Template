@@ -1,6 +1,6 @@
 # Visual Studio VSIX
 
-This folder builds a Visual Studio Marketplace package for the Enhanced Aspire Starter template.
+This folder builds a Visual Studio Marketplace package for the Aspire Admin Starter template.
 
 The NuGet `dotnet new` package remains the primary template source. The VSIX build script converts the synchronized template source into a Visual Studio multi-project `.vstemplate` package and wraps it in a VSIX.
 
@@ -26,15 +26,15 @@ Or through the Visual Studio build solution:
 dotnet build .\visualstudio\EnhancedAspireStarter.VisualStudio.slnx
 ```
 
-Pass `/p:VisualStudioVsixVersion=0.1.23` when you want to build a one-off version without changing script defaults.
+Pass `/p:VisualStudioVsixVersion=0.1.25` when you want to build a one-off version without changing script defaults.
 
 Output:
 
 ```text
-artifacts\vsix\EnhancedAspireStarter.VisualStudio.0.1.23.vsix
+artifacts\vsix\EnhancedAspireStarter.VisualStudio.0.1.24.vsix
 ```
 
-Double-click the VSIX to install it locally. Restart Visual Studio, then search for `Enhanced Aspire Starter` in the New Project dialog.
+Double-click the VSIX to install it locally. Restart Visual Studio, then search for `Aspire Admin Starter` in the New Project dialog.
 
 The database provider dropdown supports PostgreSQL and SQL Server. Selecting SQL Server disables pgAdmin because pgAdmin only applies to PostgreSQL.
 
@@ -43,7 +43,7 @@ After project creation, the wizard cleans provider-specific template blocks and 
 If an older template name still appears, close Visual Studio and clear the local VS template cache:
 
 ```powershell
-dotnet new uninstall Vwzhang.EnhancedAspireStarter.Templates
+dotnet new uninstall Vwzhang.AspireAdminStarter.Templates
 .\visualstudio\Clear-VisualStudioTemplateCache.ps1
 ```
 
@@ -65,7 +65,7 @@ The publish script finds `VsixPublisher.exe` through Visual Studio SDK installat
 After changing the source starter app:
 
 ```powershell
-.\scripts\Update-Template.ps1 -SourceRepository C:\Aspire\Starter -TemplateVersion 0.1.23
+.\scripts\Update-Template.ps1 -SourceRepository C:\Aspire\Starter -TemplateVersion 0.1.24
 ```
 
 Use the generated app's `*.Shared\TemplateInfo.cs` file to confirm which template version Visual Studio used.

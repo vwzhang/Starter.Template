@@ -1,8 +1,8 @@
-# Enhanced Aspire Starter
+# Aspire Admin Starter
 
 Start a real .NET Aspire application without spending the first day wiring infrastructure.
 
-Enhanced Aspire Starter is an opinionated Visual Studio project template for internal tools, admin portals, and full-stack line-of-business apps.
+Aspire Admin Starter is an opinionated Visual Studio project template for internal tools, admin portals, and full-stack line-of-business apps.
 
 ## Included
 
@@ -37,8 +37,8 @@ The generated app can capture local email with smtp4dev and includes pgAdmin for
 The same template is also available as a `dotnet new` template package from the project repository:
 
 ```powershell
-dotnet new install Vwzhang.EnhancedAspireStarter.Templates
-dotnet new enhanced-aspire-starter -n MyStarter
+dotnet new install Vwzhang.AspireAdminStarter.Templates
+dotnet new aspire-admin-starter -n MyStarter
 ```
 
 Repository: https://github.com/vwzhang/Starter.Template

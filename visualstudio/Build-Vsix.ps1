@@ -1,7 +1,7 @@
 param(
     [string] $TemplateSource = (Join-Path $PSScriptRoot "..\templates\enhanced-aspire-starter"),
     [string] $OutputDirectory = (Join-Path $PSScriptRoot "..\artifacts\vsix"),
-    [string] $Version = "0.1.23",
+    [string] $Version = "0.1.24",
     [string] $Publisher = "vwzhang"
 )
 
@@ -251,7 +251,7 @@ namespace EnhancedAspireStarter.VisualStudio
                     var result = owner == null ? form.ShowDialog() : form.ShowDialog(owner);
                     if (result != DialogResult.OK)
                     {
-                        throw new WizardCancelledException("Enhanced Aspire Starter creation was canceled.");
+                        throw new WizardCancelledException("Aspire Admin Starter creation was canceled.");
                     }
 
                     options = WizardOptions.FromForm(form);
@@ -927,7 +927,7 @@ namespace EnhancedAspireStarter.VisualStudio
 
         public OptionsForm(string defaultDatabaseName)
         {
-            Text = "Enhanced Aspire Starter options";
+            Text = "Aspire Admin Starter options";
             StartPosition = FormStartPosition.CenterParent;
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MinimizeBox = false;
@@ -1147,7 +1147,7 @@ namespace EnhancedAspireStarter.VisualStudio
                 MessageBox.Show(
                     this,
                     "Enter a database name. Use letters, numbers, underscore, or hyphen.",
-                    "Enhanced Aspire Starter",
+                    "Aspire Admin Starter",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Warning);
                 DialogResult = DialogResult.None;
@@ -1595,7 +1595,7 @@ function New-ProjectTemplateFile(
 
         $writer.WriteStartElement("TemplateData")
         $shortProjectName = $ProjectName.Replace("Starter.", "")
-        $writer.WriteElementString("Name", "Enhanced Aspire Starter $shortProjectName")
+        $writer.WriteElementString("Name", "Aspire Admin Starter $shortProjectName")
         $writer.WriteElementString("Description", $Description)
         $writer.WriteElementString("ProjectType", "CSharp")
         $writer.WriteElementString("Hidden", "true")
@@ -1632,7 +1632,7 @@ function Write-RootTemplate([string] $Path) {
 <?xml version="1.0" encoding="utf-8"?>
 <VSTemplate Version="3.0.0" Type="ProjectGroup" xmlns="http://schemas.microsoft.com/developer/vstemplate/2005">
   <TemplateData>
-    <Name>Enhanced Aspire Starter</Name>
+    <Name>Aspire Admin Starter</Name>
     <Description>Opinionated .NET Aspire starter with Blazor, Identity, PostgreSQL or SQL Server, Redis, pgAdmin, smtp4dev, migrations, admin modules, system settings, and a CRUD sample.</Description>
     <ProjectType>CSharp</ProjectType>
     <LanguageTag>csharp</LanguageTag>
@@ -1678,7 +1678,7 @@ function Write-VsixManifest([string] $Path, [string] $Version, [string] $Publish
 <PackageManifest Version="2.0.0" xmlns="http://schemas.microsoft.com/developer/vsx-schema/2011">
   <Metadata>
     <Identity Id="Vwzhang.EnhancedAspireStarter.VisualStudio" Version="$Version" Language="en-US" Publisher="$Publisher" />
-    <DisplayName>Enhanced Aspire Starter</DisplayName>
+    <DisplayName>Aspire Admin Starter</DisplayName>
     <Description xml:space="preserve">Visual Studio project template for an enhanced Aspire starter with Blazor, Identity, PostgreSQL or SQL Server, Redis, pgAdmin, smtp4dev, migrations, admin modules, system settings, and a CRUD sample.</Description>
     <MoreInfo>https://github.com/vwzhang/Starter.Template</MoreInfo>
     <License>Resources\LICENSE.txt</License>
@@ -1809,7 +1809,7 @@ foreach ($project in $projects) {
 New-ZipFromDirectoryContent $templateRoot $templateZip
 Copy-Item -LiteralPath $templateRoot -Destination $vsixProjectTemplateRoot -Recurse -Force
 Copy-Item -LiteralPath (Join-Path $templateSourcePath "LICENSE") -Destination (Join-Path $vsixProjectRoot "Resources\LICENSE.txt") -Force
-Write-Utf8NoBom (Join-Path $vsixProjectRoot "Resources\ReleaseNotes.txt") "Enhanced Aspire Starter project template with Visual Studio options."
+Write-Utf8NoBom (Join-Path $vsixProjectRoot "Resources\ReleaseNotes.txt") "Aspire Admin Starter project template with Visual Studio options."
 Write-WizardProjectFiles $wizardProjectRoot $visualStudioSdk.TemplateWizardInterfacePath $visualStudioSdk.EnvDtePath $visualStudioSdk.VisualStudioInteropPath
 
 $wizardBuildArguments = @(
