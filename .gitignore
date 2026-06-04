@@ -6,5 +6,6 @@ TestResults/
 .vs/
 .idea/
 .vscode/
+AGENTS.md
 artifacts/
 tmp/
