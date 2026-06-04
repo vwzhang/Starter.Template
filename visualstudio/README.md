@@ -4,6 +4,8 @@ This folder builds a Visual Studio Marketplace package for the Enhanced Aspire S
 
 The NuGet `dotnet new` package remains the primary template source. The VSIX build script converts the synchronized template source into a Visual Studio multi-project `.vstemplate` package and wraps it in a VSIX.
 
+The VSIX generates the complete default starter. Use the `dotnet new` package when you need generation options such as `--database-name`, `--include-pgadmin`, `--include-smtp4dev`, `--seed-users`, or `--seed-sample-data`.
+
 ## Build
 
 Requires Visual Studio with the Visual Studio extension development workload.
@@ -15,7 +17,7 @@ Requires Visual Studio with the Visual Studio extension development workload.
 Output:
 
 ```text
-artifacts\vsix\EnhancedAspireStarter.VisualStudio.0.1.9.vsix
+artifacts\vsix\EnhancedAspireStarter.VisualStudio.0.1.10.vsix
 ```
 
 Double-click the VSIX to install it locally. Restart Visual Studio, then search for `Enhanced Aspire Starter` in the New Project dialog.
@@ -36,7 +38,7 @@ The publish script finds `VsixPublisher.exe` through Visual Studio SDK installat
 After changing the source starter app:
 
 ```powershell
-.\scripts\Update-Template.ps1 -SourceRepository C:\Aspire\Starter -TemplateVersion 0.1.9
+.\scripts\Update-Template.ps1 -SourceRepository C:\Aspire\Starter -TemplateVersion 0.1.10
 ```
 
 Use the generated app's `*.Shared\TemplateInfo.cs` file to confirm which template version Visual Studio used.

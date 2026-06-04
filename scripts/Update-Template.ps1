@@ -1,6 +1,6 @@
 param(
     [string] $SourceRepository = (Join-Path $PSScriptRoot "..\..\Starter"),
-    [string] $TemplateVersion = "0.1.9",
+    [string] $TemplateVersion = "0.1.10",
     [string] $Configuration = "Release",
     [switch] $SkipSync
 )
@@ -66,12 +66,14 @@ Update-TextFile (Join-Path $repoRoot "visualstudio\Publish-Marketplace.ps1") {
 Update-TextFile (Join-Path $repoRoot "README.md") {
     param($content)
     $content = $content -replace 'Vwzhang\.EnhancedAspireStarter\.Templates\.[0-9]+\.[0-9]+\.[0-9]+\.nupkg', "Vwzhang.EnhancedAspireStarter.Templates.$TemplateVersion.nupkg"
-    $content -replace 'EnhancedAspireStarter\.VisualStudio\.[0-9]+\.[0-9]+\.[0-9]+\.vsix', "EnhancedAspireStarter.VisualStudio.$TemplateVersion.vsix"
+    $content = $content -replace 'EnhancedAspireStarter\.VisualStudio\.[0-9]+\.[0-9]+\.[0-9]+\.vsix', "EnhancedAspireStarter.VisualStudio.$TemplateVersion.vsix"
+    $content -replace '-TemplateVersion [0-9]+\.[0-9]+\.[0-9]+', "-TemplateVersion $TemplateVersion"
 }
 
 Update-TextFile (Join-Path $repoRoot "visualstudio\README.md") {
     param($content)
-    $content -replace 'EnhancedAspireStarter\.VisualStudio\.[0-9]+\.[0-9]+\.[0-9]+\.vsix', "EnhancedAspireStarter.VisualStudio.$TemplateVersion.vsix"
+    $content = $content -replace 'EnhancedAspireStarter\.VisualStudio\.[0-9]+\.[0-9]+\.[0-9]+\.vsix', "EnhancedAspireStarter.VisualStudio.$TemplateVersion.vsix"
+    $content -replace '-TemplateVersion [0-9]+\.[0-9]+\.[0-9]+', "-TemplateVersion $TemplateVersion"
 }
 
 Update-TextFile (Join-Path $templateRoot "README.md") {

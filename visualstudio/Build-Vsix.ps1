@@ -1,7 +1,7 @@
 param(
     [string] $TemplateSource = (Join-Path $PSScriptRoot "..\templates\enhanced-aspire-starter"),
     [string] $OutputDirectory = (Join-Path $PSScriptRoot "..\artifacts\vsix"),
-    [string] $Version = "0.1.9",
+    [string] $Version = "0.1.10",
     [string] $Publisher = "vwzhang"
 )
 
@@ -38,6 +38,12 @@ function Test-TextTemplateFile([string] $Path) {
 
 function Write-Utf8NoBom([string] $Path, [string] $Content) {
     [System.IO.File]::WriteAllText($Path, $Content, [System.Text.UTF8Encoding]::new($false))
+}
+
+function Remove-DotNetTemplateConditionDirectives([string] $Content) {
+    $content = $Content -replace '(?m)^[ \t]*//#(if|elseif|else|endif).*(\r?\n)?', ''
+    $content = $content -replace '(?m)^[ \t]*@\*#(if|elseif|else|endif).*?\*@\s*(\r?\n)?', ''
+    $content -replace '(?m)^[ \t]*<!--#(if|elseif|else|endif).*?-->\s*(\r?\n)?', ''
 }
 
 function Escape-Xml([string] $Value) {
@@ -221,6 +227,7 @@ function Convert-ToTemplateTokenizedFiles([string] $Root) {
         }
 
         $content = [System.IO.File]::ReadAllText($file.FullName)
+        $content = Remove-DotNetTemplateConditionDirectives $content
         $content = $content.Replace("f6e76cbf-2d79-4b8b-9023-113ac10e07f9", '$guid1$')
         $content = $content.Replace("vwzhang", '$registeredorganization$')
         $content = $content.Replace("starterDb", '$ext_safeprojectname$Db')

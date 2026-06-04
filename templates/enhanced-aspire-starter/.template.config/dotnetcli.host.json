@@ -1,0 +1,29 @@
+{
+  "$schema": "http://json.schemastore.org/dotnetcli.host",
+  "symbolInfo": {
+    "authorName": {
+      "longName": "author-name",
+      "shortName": ""
+    },
+    "databaseName": {
+      "longName": "database-name",
+      "shortName": ""
+    },
+    "includePgAdmin": {
+      "longName": "include-pgadmin",
+      "shortName": ""
+    },
+    "includeSmtp4dev": {
+      "longName": "include-smtp4dev",
+      "shortName": ""
+    },
+    "seedUsers": {
+      "longName": "seed-users",
+      "shortName": ""
+    },
+    "seedSampleData": {
+      "longName": "seed-sample-data",
+      "shortName": ""
+    }
+  }
+}

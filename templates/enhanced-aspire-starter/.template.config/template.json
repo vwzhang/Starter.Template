@@ -59,9 +59,38 @@
       "description": "Lowercase alphanumeric name used for local resources."
     },
     "databaseName": {
+      "type": "parameter",
+      "datatype": "text",
+      "defaultValue": "",
+      "description": "PostgreSQL database and connection string name. Defaults to '<project-name>db'."
+    },
+    "includePgAdmin": {
+      "type": "parameter",
+      "datatype": "bool",
+      "defaultValue": "true",
+      "description": "Include the local pgAdmin container."
+    },
+    "includeSmtp4dev": {
+      "type": "parameter",
+      "datatype": "bool",
+      "defaultValue": "true",
+      "description": "Include the local smtp4dev email capture container."
+    },
+    "seedUsers": {
+      "type": "parameter",
+      "datatype": "bool",
+      "defaultValue": "true",
+      "description": "Seed development admin, manager, and user accounts."
+    },
+    "seedSampleData": {
+      "type": "parameter",
+      "datatype": "bool",
+      "defaultValue": "true",
+      "description": "Seed sample catalog categories and products in Development."
+    },
+    "defaultDatabaseName": {
       "type": "generated",
       "generator": "join",
-      "replaces": "starterdb",
       "parameters": {
         "symbols": [
           {
@@ -77,6 +106,16 @@
         "removeEmptyValues": true
       },
       "description": "PostgreSQL database and connection string name."
+    },
+    "resolvedDatabaseName": {
+      "type": "generated",
+      "generator": "coalesce",
+      "replaces": "starterdb",
+      "parameters": {
+        "sourceVariableName": "databaseName",
+        "fallbackVariableName": "defaultDatabaseName"
+      },
+      "description": "Resolved database name after applying the optional databaseName parameter."
     },
     "databaseVariableName": {
       "type": "generated",
@@ -137,6 +176,42 @@
         "removeEmptyValues": true
       },
       "description": "CSS class prefix derived from the generated project name."
+    },
+    "seedCatalogSampleDataValue": {
+      "type": "generated",
+      "generator": "switch",
+      "replaces": "const string SeedCatalogSampleDataValue = \"true\";",
+      "parameters": {
+        "cases": [
+          {
+            "condition": "(!seedSampleData)",
+            "value": "const string SeedCatalogSampleDataValue = \"false\";"
+          },
+          {
+            "condition": "(true)",
+            "value": "const string SeedCatalogSampleDataValue = \"true\";"
+          }
+        ]
+      },
+      "description": "AppHost seed-data setting emitted from the seedSampleData option."
+    },
+    "seedDevelopmentTestUsersValue": {
+      "type": "generated",
+      "generator": "switch",
+      "replaces": "const string SeedDevelopmentTestUsersValue = \"true\";",
+      "parameters": {
+        "cases": [
+          {
+            "condition": "(!seedUsers)",
+            "value": "const string SeedDevelopmentTestUsersValue = \"false\";"
+          },
+          {
+            "condition": "(true)",
+            "value": "const string SeedDevelopmentTestUsersValue = \"true\";"
+          }
+        ]
+      },
+      "description": "AppHost identity seed setting emitted from the seedUsers option."
     }
   },
   "sources": [
