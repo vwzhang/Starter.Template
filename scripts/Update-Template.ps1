@@ -1,6 +1,6 @@
 param(
     [string] $SourceRepository = (Join-Path $PSScriptRoot "..\..\Starter"),
-    [string] $TemplateVersion = "0.1.6",
+    [string] $TemplateVersion = "0.1.8",
     [string] $Configuration = "Release",
     [switch] $SkipSync
 )
@@ -76,6 +76,9 @@ Update-TextFile (Join-Path $repoRoot "visualstudio\README.md") {
 
 Update-TextFile (Join-Path $templateRoot "README.md") {
     param($content)
+    $content = $content.Replace(
+        "`dotnet aspire starter`, `aspire template`, `blazor admin starter`, `aspnet core identity`, `mudblazor dashboard`, `postgresql aspire`, `minimal api starter`, `smtp4dev`, `ef core migrations`, `redis output cache`.",
+        "`dotnet aspire`, `aspire template`, `blazor admin`, `aspnet core identity`, `mudblazor dashboard`, `postgresql aspire`, `minimal api`, `smtp4dev`, `ef core migrations`, `redis output cache`.")
     $versionLine = "Template version: ``$TemplateVersion``. The same value is available in ``Starter.Shared.TemplateInfo.Version``."
     $versionPattern = 'Template version: `[^`]+`\. The same value is available in `Starter\.Shared\.TemplateInfo\.Version`\.'
 
@@ -83,7 +86,7 @@ Update-TextFile (Join-Path $templateRoot "README.md") {
         return [regex]::Replace($content, $versionPattern, $versionLine)
     }
 
-    $generatedParagraph = "This repository was generated from an enhanced Aspire starter template. It includes the pieces most teams add immediately: identity, roles, admin pages, PostgreSQL, Redis, migrations, local email capture, typed DTOs, a Minimal API, a Blazor frontend, and an integration test that starts the distributed app."
+    $generatedParagraph = "This repository was generated from an enhanced Aspire application template. It includes the pieces most teams add immediately: identity, roles, admin pages, PostgreSQL, Redis, migrations, local email capture, typed DTOs, a Minimal API, a Blazor frontend, and an integration test that starts the distributed app."
     $content.Replace($generatedParagraph, "$generatedParagraph`r`n`r`n$versionLine")
 }
 

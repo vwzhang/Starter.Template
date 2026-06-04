@@ -1,7 +1,7 @@
 param(
     [string] $TemplateSource = (Join-Path $PSScriptRoot "..\templates\enhanced-aspire-starter"),
     [string] $OutputDirectory = (Join-Path $PSScriptRoot "..\artifacts\vsix"),
-    [string] $Version = "0.1.7",
+    [string] $Version = "0.1.8",
     [string] $Publisher = "vwzhang"
 )
 
@@ -223,6 +223,10 @@ function Convert-ToTemplateTokenizedFiles([string] $Root) {
         $content = [System.IO.File]::ReadAllText($file.FullName)
         $content = $content.Replace("f6e76cbf-2d79-4b8b-9023-113ac10e07f9", '$guid1$')
         $content = $content.Replace("vwzhang", '$registeredorganization$')
+        $content = $content.Replace("starterDb", '$ext_safeprojectname$Db')
+        $content = $content.Replace("starterdb", '$ext_safeprojectname$db')
+        $content = $content.Replace("starter.local", '$ext_safeprojectname$.local')
+        $content = $content.Replace("starter-", '$ext_safeprojectname$-')
         $content = $content.Replace("Starter", '$ext_safeprojectname$')
         [System.IO.File]::WriteAllText($file.FullName, $content, [System.Text.UTF8Encoding]::new($false))
     }

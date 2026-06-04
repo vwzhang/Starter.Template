@@ -15,7 +15,7 @@ Requires Visual Studio with the Visual Studio extension development workload.
 Output:
 
 ```text
-artifacts\vsix\EnhancedAspireStarter.VisualStudio.0.1.7.vsix
+artifacts\vsix\EnhancedAspireStarter.VisualStudio.0.1.8.vsix
 ```
 
 Double-click the VSIX to install it locally. Restart Visual Studio, then search for `Enhanced Aspire Starter` in the New Project dialog.

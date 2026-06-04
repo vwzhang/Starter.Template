@@ -34,6 +34,109 @@
       "defaultValue": "Your Organization",
       "replaces": "vwzhang",
       "description": "Owner name used in generated project metadata and license text."
+    },
+    "projectNameLower": {
+      "type": "generated",
+      "generator": "casing",
+      "parameters": {
+        "source": "name",
+        "toLower": true
+      },
+      "description": "Lowercase form of the generated project name."
+    },
+    "projectResourceName": {
+      "type": "generated",
+      "generator": "regex",
+      "parameters": {
+        "source": "projectNameLower",
+        "steps": [
+          {
+            "regex": "[^a-z0-9]",
+            "replacement": ""
+          }
+        ]
+      },
+      "description": "Lowercase alphanumeric name used for local resources."
+    },
+    "databaseName": {
+      "type": "generated",
+      "generator": "join",
+      "replaces": "starterdb",
+      "parameters": {
+        "symbols": [
+          {
+            "type": "ref",
+            "value": "projectResourceName"
+          },
+          {
+            "type": "const",
+            "value": "db"
+          }
+        ],
+        "separator": "",
+        "removeEmptyValues": true
+      },
+      "description": "PostgreSQL database and connection string name."
+    },
+    "databaseVariableName": {
+      "type": "generated",
+      "generator": "join",
+      "replaces": "starterDb",
+      "parameters": {
+        "symbols": [
+          {
+            "type": "ref",
+            "value": "projectResourceName"
+          },
+          {
+            "type": "const",
+            "value": "Db"
+          }
+        ],
+        "separator": "",
+        "removeEmptyValues": true
+      },
+      "description": "C# local variable name for the PostgreSQL database resource."
+    },
+    "localEmailDomain": {
+      "type": "generated",
+      "generator": "join",
+      "replaces": "starter.local",
+      "parameters": {
+        "symbols": [
+          {
+            "type": "ref",
+            "value": "projectResourceName"
+          },
+          {
+            "type": "const",
+            "value": ".local"
+          }
+        ],
+        "separator": "",
+        "removeEmptyValues": true
+      },
+      "description": "Local email domain used by seeded test users and SMTP defaults."
+    },
+    "stylePrefix": {
+      "type": "generated",
+      "generator": "join",
+      "replaces": "starter-",
+      "parameters": {
+        "symbols": [
+          {
+            "type": "ref",
+            "value": "projectResourceName"
+          },
+          {
+            "type": "const",
+            "value": "-"
+          }
+        ],
+        "separator": "",
+        "removeEmptyValues": true
+      },
+      "description": "CSS class prefix derived from the generated project name."
     }
   },
   "sources": [
