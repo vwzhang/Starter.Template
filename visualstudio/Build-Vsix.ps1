@@ -1,7 +1,7 @@
 param(
     [string] $TemplateSource = (Join-Path $PSScriptRoot "..\templates\enhanced-aspire-starter"),
     [string] $OutputDirectory = (Join-Path $PSScriptRoot "..\artifacts\vsix"),
-    [string] $Version = "0.1.18",
+    [string] $Version = "0.1.19",
     [string] $Publisher = "vwzhang"
 )
 
@@ -216,15 +216,13 @@ namespace AspireAdminStarter.VisualStudio
 {
     public sealed class AspireAdminStarterWizard : IWizard
     {
+        private static WizardOptions configuredOptions;
         private readonly List<string> projectDirectories = new List<string>();
         private string destinationDirectory;
         private DTE dte;
-        private bool includePgAdminForPostgreSql;
-        private bool includeSmtp4dev;
         private string requestedProjectName;
         private string solutionDirectory;
-        private bool usePostgreSql;
-        private bool useSqlServer;
+        private WizardOptions options;
 
         public void RunStarted(
             object automationObject,
@@ -233,7 +231,10 @@ namespace AspireAdminStarter.VisualStudio
             object[] customParams)
         {
             dte = automationObject as DTE;
-            var projectName = GetReplacement(replacementsDictionary, "$safeprojectname$", "MyAspireAdmin");
+            var projectName = GetReplacement(
+                replacementsDictionary,
+                "$ext_safeprojectname$",
+                GetReplacement(replacementsDictionary, "$safeprojectname$", "MyAspireAdmin"));
             requestedProjectName = projectName;
             destinationDirectory = GetReplacement(replacementsDictionary, "$destinationdirectory$", string.Empty);
             solutionDirectory = GetReplacement(replacementsDictionary, "$solutiondirectory$", string.Empty);
@@ -241,31 +242,24 @@ namespace AspireAdminStarter.VisualStudio
             Application.EnableVisualStyles();
             var owner = OwnerWindow.FromAutomationObject(automationObject);
 
-            using (var form = new OptionsForm(defaultDatabaseName))
-            {
-                var result = owner == null ? form.ShowDialog() : form.ShowDialog(owner);
-                if (result != DialogResult.OK)
-                {
-                    throw new WizardCancelledException("Aspire Admin Starter creation was canceled.");
-                }
+            options = configuredOptions ?? TryReadCopiedOptions(replacementsDictionary);
 
-                includePgAdminForPostgreSql = form.IncludePgAdminForPostgreSql;
-                includeSmtp4dev = form.IncludeSmtp4dev;
-                usePostgreSql = form.UsePostgreSql;
-                useSqlServer = form.UseSqlServer;
-                SetReplacement(replacementsDictionary, "$aspireadmin_databaseprovider$", form.DatabaseProvider);
-                SetReplacement(replacementsDictionary, "$aspireadmin_usepostgresql$", ToTemplateBoolean(form.UsePostgreSql));
-                SetReplacement(replacementsDictionary, "$aspireadmin_usesqlserver$", ToTemplateBoolean(form.UseSqlServer));
-                SetReplacement(replacementsDictionary, "$aspireadmin_databasename$", form.DatabaseName);
-                SetReplacement(replacementsDictionary, "$aspireadmin_includepgadmin$", ToTemplateBoolean(form.IncludePgAdmin));
-                SetReplacement(replacementsDictionary, "$aspireadmin_includepgadminforpostgresql$", ToTemplateBoolean(form.IncludePgAdminForPostgreSql));
-                SetReplacement(replacementsDictionary, "$aspireadmin_includesmtp4dev$", ToTemplateBoolean(form.IncludeSmtp4dev));
-                SetReplacement(replacementsDictionary, "$aspireadmin_apphostdatabasepackagereference$", form.AppHostDatabasePackageReference);
-                SetReplacement(replacementsDictionary, "$aspireadmin_aspireefdatabasepackagereference$", form.AspireEfDatabasePackageReference);
-                SetReplacement(replacementsDictionary, "$aspireadmin_webefdatabasepackagereference$", form.WebEfDatabasePackageReference);
-                SetReplacement(replacementsDictionary, "$aspireadmin_seedcatalogsampledatavalue$", form.SeedSampleData ? "true" : "false");
-                SetReplacement(replacementsDictionary, "$aspireadmin_seeddevelopmenttestusersvalue$", form.SeedUsers ? "true" : "false");
+            if (options == null)
+            {
+                using (var form = new OptionsForm(defaultDatabaseName))
+                {
+                    var result = owner == null ? form.ShowDialog() : form.ShowDialog(owner);
+                    if (result != DialogResult.OK)
+                    {
+                        throw new WizardCancelledException("Enhanced Aspire Starter creation was canceled.");
+                    }
+
+                    options = WizardOptions.FromForm(form);
+                }
             }
+
+            configuredOptions = options;
+            SetOptionReplacements(replacementsDictionary, options);
         }
 
         public void ProjectFinishedGenerating(Project project)
@@ -280,6 +274,9 @@ namespace AspireAdminStarter.VisualStudio
             {
                 projectDirectories.Add(projectDirectory);
             }
+
+            CleanGeneratedRoot(projectDirectory);
+            SetAppHostStartupProject();
         }
 
         public void ProjectItemFinishedGenerating(ProjectItem projectItem)
@@ -292,10 +289,10 @@ namespace AspireAdminStarter.VisualStudio
 
             if (normalizedPath.IndexOf("\\Migrations.SqlServer\\", StringComparison.OrdinalIgnoreCase) >= 0)
             {
-                return useSqlServer;
+                return options != null && options.UseSqlServer;
             }
 
-            if (useSqlServer && normalizedPath.IndexOf("\\Migrations\\", StringComparison.OrdinalIgnoreCase) >= 0)
+            if (options != null && options.UseSqlServer && normalizedPath.IndexOf("\\Migrations\\", StringComparison.OrdinalIgnoreCase) >= 0)
             {
                 return false;
             }
@@ -318,9 +315,19 @@ namespace AspireAdminStarter.VisualStudio
                 return;
             }
 
+            CleanGeneratedRoot(root);
+            SetAppHostStartupProject();
+        }
+
+        private void CleanGeneratedRoot(string root)
+        {
+            if (options == null || string.IsNullOrWhiteSpace(root) || !Directory.Exists(root))
+            {
+                return;
+            }
+
             DeleteInactiveMigrationDirectories(root);
             ProcessConditionalTemplateBlocks(root);
-            SetAppHostStartupProject();
         }
 
         private void CaptureSolutionProjectDirectories()
@@ -417,7 +424,7 @@ namespace AspireAdminStarter.VisualStudio
                 return;
             }
 
-            dte.Solution.SolutionBuild.StartupProjects = new object[] { appHostProject.UniqueName };
+            dte.Solution.SolutionBuild.StartupProjects = appHostProject.UniqueName;
         }
 
         private string GetGeneratedRoot()
@@ -528,7 +535,7 @@ namespace AspireAdminStarter.VisualStudio
 
         private void DeleteInactiveMigrationDirectories(string root)
         {
-            var inactiveDirectoryName = useSqlServer ? "Migrations" : "Migrations.SqlServer";
+            var inactiveDirectoryName = options.UseSqlServer ? "Migrations" : "Migrations.SqlServer";
 
             foreach (var directory in Directory.GetDirectories(root, inactiveDirectoryName, SearchOption.AllDirectories))
             {
@@ -672,22 +679,22 @@ namespace AspireAdminStarter.VisualStudio
         {
             if (conditionKey.Equals("ext_aspireadmin_includesmtp4dev", StringComparison.OrdinalIgnoreCase))
             {
-                return includeSmtp4dev;
+                return options != null && options.IncludeSmtp4dev;
             }
 
             if (conditionKey.Equals("ext_aspireadmin_includepgadminforpostgresql", StringComparison.OrdinalIgnoreCase))
             {
-                return includePgAdminForPostgreSql;
+                return options != null && options.IncludePgAdminForPostgreSql;
             }
 
             if (conditionKey.Equals("ext_aspireadmin_usepostgresql", StringComparison.OrdinalIgnoreCase))
             {
-                return usePostgreSql;
+                return options != null && options.UsePostgreSql;
             }
 
             if (conditionKey.Equals("ext_aspireadmin_usesqlserver", StringComparison.OrdinalIgnoreCase))
             {
-                return useSqlServer;
+                return options != null && options.UseSqlServer;
             }
 
             return false;
@@ -732,6 +739,159 @@ namespace AspireAdminStarter.VisualStudio
 
             return characters.Length == 0 ? "app" : new string(characters);
         }
+
+        private static WizardOptions TryReadCopiedOptions(IDictionary<string, string> replacements)
+        {
+            var provider = GetReplacement(
+                replacements,
+                "$ext_aspireadmin_databaseprovider$",
+                GetReplacement(replacements, "$aspireadmin_databaseprovider$", string.Empty));
+
+            if (string.IsNullOrWhiteSpace(provider))
+            {
+                return null;
+            }
+
+            var useSqlServer = provider.Equals("SqlServer", StringComparison.OrdinalIgnoreCase)
+                || ParseTemplateBoolean(GetReplacement(replacements, "$ext_aspireadmin_usesqlserver$", "False"));
+            var databaseName = GetReplacement(
+                replacements,
+                "$ext_aspireadmin_databasename$",
+                GetReplacement(replacements, "$aspireadmin_databasename$", "starterdb"));
+
+            return WizardOptions.FromValues(
+                useSqlServer,
+                databaseName,
+                ParseTemplateBoolean(GetReplacement(replacements, "$ext_aspireadmin_includepgadmin$", "True")),
+                ParseTemplateBoolean(GetReplacement(replacements, "$ext_aspireadmin_includepgadminforpostgresql$", useSqlServer ? "False" : "True")),
+                ParseTemplateBoolean(GetReplacement(replacements, "$ext_aspireadmin_includesmtp4dev$", "True")),
+                ParseTemplateBoolean(GetReplacement(replacements, "$ext_aspireadmin_seeddevelopmenttestusersvalue$", "true")),
+                ParseTemplateBoolean(GetReplacement(replacements, "$ext_aspireadmin_seedcatalogsampledatavalue$", "true")));
+        }
+
+        private static void SetOptionReplacements(IDictionary<string, string> replacements, WizardOptions options)
+        {
+            SetAspireReplacement(replacements, "databaseprovider", options.DatabaseProvider);
+            SetAspireReplacement(replacements, "usepostgresql", ToTemplateBoolean(options.UsePostgreSql));
+            SetAspireReplacement(replacements, "usesqlserver", ToTemplateBoolean(options.UseSqlServer));
+            SetAspireReplacement(replacements, "databasename", options.DatabaseName);
+            SetAspireReplacement(replacements, "includepgadmin", ToTemplateBoolean(options.IncludePgAdmin));
+            SetAspireReplacement(replacements, "includepgadminforpostgresql", ToTemplateBoolean(options.IncludePgAdminForPostgreSql));
+            SetAspireReplacement(replacements, "includesmtp4dev", ToTemplateBoolean(options.IncludeSmtp4dev));
+            SetAspireReplacement(replacements, "apphostdatabasepackagereference", options.AppHostDatabasePackageReference);
+            SetAspireReplacement(replacements, "aspireefdatabasepackagereference", options.AspireEfDatabasePackageReference);
+            SetAspireReplacement(replacements, "webefdatabasepackagereference", options.WebEfDatabasePackageReference);
+            SetAspireReplacement(replacements, "seedcatalogsampledatavalue", options.SeedSampleData ? "true" : "false");
+            SetAspireReplacement(replacements, "seeddevelopmenttestusersvalue", options.SeedUsers ? "true" : "false");
+        }
+
+        private static void SetAspireReplacement(IDictionary<string, string> replacements, string name, string value)
+        {
+            SetReplacement(replacements, "$aspireadmin_" + name + "$", value);
+            SetReplacement(replacements, "$ext_aspireadmin_" + name + "$", value);
+        }
+
+        private static bool ParseTemplateBoolean(string value)
+        {
+            return value != null
+                && (value.Equals("true", StringComparison.OrdinalIgnoreCase)
+                    || value.Equals("True", StringComparison.Ordinal)
+                    || value.Equals("1", StringComparison.OrdinalIgnoreCase));
+        }
+    }
+
+    internal sealed class WizardOptions
+    {
+        private WizardOptions(
+            bool useSqlServer,
+            string databaseName,
+            bool includePgAdmin,
+            bool includePgAdminForPostgreSql,
+            bool includeSmtp4dev,
+            bool seedUsers,
+            bool seedSampleData)
+        {
+            UseSqlServer = useSqlServer;
+            UsePostgreSql = !useSqlServer;
+            DatabaseProvider = useSqlServer ? "SqlServer" : "PostgreSql";
+            DatabaseName = string.IsNullOrWhiteSpace(databaseName) ? "starterdb" : databaseName;
+            IncludePgAdmin = includePgAdmin;
+            IncludePgAdminForPostgreSql = !useSqlServer && includePgAdminForPostgreSql;
+            IncludeSmtp4dev = includeSmtp4dev;
+            SeedUsers = seedUsers;
+            SeedSampleData = seedSampleData;
+        }
+
+        public bool UsePostgreSql { get; private set; }
+        public bool UseSqlServer { get; private set; }
+        public string DatabaseProvider { get; private set; }
+        public string DatabaseName { get; private set; }
+        public bool IncludePgAdmin { get; private set; }
+        public bool IncludePgAdminForPostgreSql { get; private set; }
+        public bool IncludeSmtp4dev { get; private set; }
+        public bool SeedUsers { get; private set; }
+        public bool SeedSampleData { get; private set; }
+
+        public string AppHostDatabasePackageReference
+        {
+            get
+            {
+                return UseSqlServer
+                    ? "<PackageReference Include=\"Aspire.Hosting.SqlServer\" Version=\"13.4.0\" />"
+                    : "<PackageReference Include=\"Aspire.Hosting.PostgreSQL\" Version=\"13.4.0\" />";
+            }
+        }
+
+        public string AspireEfDatabasePackageReference
+        {
+            get
+            {
+                return UseSqlServer
+                    ? "<PackageReference Include=\"Aspire.Microsoft.EntityFrameworkCore.SqlServer\" Version=\"13.4.0\" />"
+                    : "<PackageReference Include=\"Aspire.Npgsql.EntityFrameworkCore.PostgreSQL\" Version=\"13.4.0\" />";
+            }
+        }
+
+        public string WebEfDatabasePackageReference
+        {
+            get
+            {
+                return UseSqlServer
+                    ? "<PackageReference Include=\"Microsoft.EntityFrameworkCore.SqlServer\" Version=\"10.0.8\" />"
+                    : "<PackageReference Include=\"Npgsql.EntityFrameworkCore.PostgreSQL\" Version=\"10.0.2\" />";
+            }
+        }
+
+        public static WizardOptions FromForm(OptionsForm form)
+        {
+            return new WizardOptions(
+                form.UseSqlServer,
+                form.DatabaseName,
+                form.IncludePgAdmin,
+                form.IncludePgAdminForPostgreSql,
+                form.IncludeSmtp4dev,
+                form.SeedUsers,
+                form.SeedSampleData);
+        }
+
+        public static WizardOptions FromValues(
+            bool useSqlServer,
+            string databaseName,
+            bool includePgAdmin,
+            bool includePgAdminForPostgreSql,
+            bool includeSmtp4dev,
+            bool seedUsers,
+            bool seedSampleData)
+        {
+            return new WizardOptions(
+                useSqlServer,
+                databaseName,
+                includePgAdmin,
+                includePgAdminForPostgreSql,
+                includeSmtp4dev,
+                seedUsers,
+                seedSampleData);
+        }
     }
 
     internal sealed class OwnerWindow : IWin32Window
@@ -767,7 +927,7 @@ namespace AspireAdminStarter.VisualStudio
 
         public OptionsForm(string defaultDatabaseName)
         {
-            Text = "Aspire Admin Starter options";
+            Text = "Enhanced Aspire Starter options";
             StartPosition = FormStartPosition.CenterParent;
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MinimizeBox = false;
@@ -987,7 +1147,7 @@ namespace AspireAdminStarter.VisualStudio
                 MessageBox.Show(
                     this,
                     "Enter a database name. Use letters, numbers, underscore, or hyphen.",
-                    "Aspire Admin Starter",
+                    "Enhanced Aspire Starter",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Warning);
                 DialogResult = DialogResult.None;
@@ -1435,7 +1595,7 @@ function New-ProjectTemplateFile(
 
         $writer.WriteStartElement("TemplateData")
         $shortProjectName = $ProjectName.Replace("Starter.", "")
-        $writer.WriteElementString("Name", "Aspire Admin Starter $shortProjectName")
+        $writer.WriteElementString("Name", "Enhanced Aspire Starter $shortProjectName")
         $writer.WriteElementString("Description", $Description)
         $writer.WriteElementString("ProjectType", "CSharp")
         $writer.WriteElementString("Hidden", "true")
@@ -1453,6 +1613,12 @@ function New-ProjectTemplateFile(
 
         $writer.WriteEndElement()
         $writer.WriteEndElement()
+
+        $writer.WriteStartElement("WizardExtension")
+        $writer.WriteElementString("Assembly", "AspireAdminStarter.Wizard")
+        $writer.WriteElementString("FullClassName", "AspireAdminStarter.VisualStudio.AspireAdminStarterWizard")
+        $writer.WriteEndElement()
+
         $writer.WriteEndElement()
         $writer.WriteEndDocument()
     }
@@ -1466,8 +1632,8 @@ function Write-RootTemplate([string] $Path) {
 <?xml version="1.0" encoding="utf-8"?>
 <VSTemplate Version="3.0.0" Type="ProjectGroup" xmlns="http://schemas.microsoft.com/developer/vstemplate/2005">
   <TemplateData>
-    <Name>Aspire Admin Starter</Name>
-    <Description>Opinionated .NET Aspire admin starter with Blazor, Identity, PostgreSQL or SQL Server, Redis, pgAdmin, smtp4dev, migrations, admin modules, system settings, and a CRUD sample.</Description>
+    <Name>Enhanced Aspire Starter</Name>
+    <Description>Opinionated .NET Aspire starter with Blazor, Identity, PostgreSQL or SQL Server, Redis, pgAdmin, smtp4dev, migrations, admin modules, system settings, and a CRUD sample.</Description>
     <ProjectType>CSharp</ProjectType>
     <LanguageTag>csharp</LanguageTag>
     <PlatformTag>windows</PlatformTag>
@@ -1488,8 +1654,8 @@ function Write-RootTemplate([string] $Path) {
   </TemplateData>
   <TemplateContent>
     <ProjectCollection>
-      <ProjectTemplateLink ProjectName="$safeprojectname$.AppHost" CopyParameters="true">Starter.AppHost\Starter.AppHost.vstemplate</ProjectTemplateLink>
       <ProjectTemplateLink ProjectName="$safeprojectname$.ApiService" CopyParameters="true">Starter.ApiService\Starter.ApiService.vstemplate</ProjectTemplateLink>
+      <ProjectTemplateLink ProjectName="$safeprojectname$.AppHost" CopyParameters="true">Starter.AppHost\Starter.AppHost.vstemplate</ProjectTemplateLink>
       <ProjectTemplateLink ProjectName="$safeprojectname$.MigrationService" CopyParameters="true">Starter.MigrationService\Starter.MigrationService.vstemplate</ProjectTemplateLink>
       <ProjectTemplateLink ProjectName="$safeprojectname$.ServiceDefaults" CopyParameters="true">Starter.ServiceDefaults\Starter.ServiceDefaults.vstemplate</ProjectTemplateLink>
       <ProjectTemplateLink ProjectName="$safeprojectname$.Shared" CopyParameters="true">Starter.Shared\Starter.Shared.vstemplate</ProjectTemplateLink>
@@ -1512,12 +1678,12 @@ function Write-VsixManifest([string] $Path, [string] $Version, [string] $Publish
 <PackageManifest Version="2.0.0" xmlns="http://schemas.microsoft.com/developer/vsx-schema/2011">
   <Metadata>
     <Identity Id="Vwzhang.EnhancedAspireStarter.VisualStudio" Version="$Version" Language="en-US" Publisher="$Publisher" />
-    <DisplayName>Aspire Admin Starter</DisplayName>
-    <Description xml:space="preserve">Visual Studio project template for an Aspire admin starter with Blazor, Identity, PostgreSQL or SQL Server, Redis, pgAdmin, smtp4dev, migrations, admin modules, system settings, and a CRUD sample.</Description>
+    <DisplayName>Enhanced Aspire Starter</DisplayName>
+    <Description xml:space="preserve">Visual Studio project template for an enhanced Aspire starter with Blazor, Identity, PostgreSQL or SQL Server, Redis, pgAdmin, smtp4dev, migrations, admin modules, system settings, and a CRUD sample.</Description>
     <MoreInfo>https://github.com/vwzhang/Starter.Template</MoreInfo>
     <License>Resources\LICENSE.txt</License>
     <ReleaseNotes>Resources\ReleaseNotes.txt</ReleaseNotes>
-    <Tags>Aspire; .NET; Blazor; ASP.NET Core; Identity; PostgreSQL; SQL Server; Redis; pgAdmin; smtp4dev; Admin; Project Template</Tags>
+    <Tags>Aspire; .NET; Blazor; ASP.NET Core; Identity; PostgreSQL; SQL Server; Redis; pgAdmin; smtp4dev; Admin; Enhanced Aspire; Project Template</Tags>
   </Metadata>
   <Installation>
     <InstallationTarget Id="Microsoft.VisualStudio.Community" Version="[17.0,19.0)">
@@ -1609,8 +1775,8 @@ New-Item -ItemType Directory -Path (Join-Path $vsixProjectRoot "bin\Release") -F
 New-Item -ItemType Directory -Path $outputPath -Force | Out-Null
 
 $projects = @(
-    "Starter.AppHost",
     "Starter.ApiService",
+    "Starter.AppHost",
     "Starter.MigrationService",
     "Starter.ServiceDefaults",
     "Starter.Shared",
@@ -1643,7 +1809,7 @@ foreach ($project in $projects) {
 New-ZipFromDirectoryContent $templateRoot $templateZip
 Copy-Item -LiteralPath $templateRoot -Destination $vsixProjectTemplateRoot -Recurse -Force
 Copy-Item -LiteralPath (Join-Path $templateSourcePath "LICENSE") -Destination (Join-Path $vsixProjectRoot "Resources\LICENSE.txt") -Force
-Write-Utf8NoBom (Join-Path $vsixProjectRoot "Resources\ReleaseNotes.txt") "Aspire Admin Starter project template with Visual Studio options."
+Write-Utf8NoBom (Join-Path $vsixProjectRoot "Resources\ReleaseNotes.txt") "Enhanced Aspire Starter project template with Visual Studio options."
 Write-WizardProjectFiles $wizardProjectRoot $visualStudioSdk.TemplateWizardInterfacePath $visualStudioSdk.EnvDtePath $visualStudioSdk.VisualStudioInteropPath
 
 $wizardBuildArguments = @(

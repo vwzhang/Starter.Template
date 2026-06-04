@@ -15,10 +15,10 @@
     "Redis",
     "Identity"
   ],
-  "name": "Aspire Admin Starter",
+  "name": "Enhanced Aspire Starter",
   "identity": "Vwzhang.EnhancedAspireStarter.CSharp",
   "groupIdentity": "Vwzhang.EnhancedAspireStarter",
-  "shortName": "aspire-admin-starter",
+  "shortName": "enhanced-aspire-starter",
   "sourceName": "Starter",
   "preferNameDirectory": false,
   "tags": {

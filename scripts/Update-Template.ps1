@@ -1,6 +1,6 @@
 param(
     [string] $SourceRepository = (Join-Path $PSScriptRoot "..\..\Starter"),
-    [string] $TemplateVersion = "0.1.18",
+    [string] $TemplateVersion = "0.1.19",
     [string] $Configuration = "Release",
     [switch] $SkipSync
 )
@@ -47,7 +47,7 @@ namespace Starter.Shared;
 
 public static class TemplateInfo
 {
-    public const string Name = "Aspire Admin Starter";
+    public const string Name = "Enhanced Aspire St" + "arter";
     public const string Version = "$TemplateVersion";
 }
 "@
@@ -85,7 +85,7 @@ Update-TextFile (Join-Path $templateRoot "README.md") {
     param($content)
     $content = $content.Replace("## Why Use This", "## Why This App")
     $content = $content.Replace(
-        "Starting from a blank Aspire template is clean, but the first useful admin app usually needs the same foundation again and again. Aspire Admin Starter packages that foundation into a working application you can run, inspect, rename, and extend.",
+        "Starting from a blank Aspire template is clean, but the first useful admin app usually needs the same foundation again and again. Enhanced Aspire Starter packages that foundation into a working application you can run, inspect, rename, and extend.",
         "This application was generated from an enhanced Aspire template. It includes the foundation most teams add early: identity, roles, admin pages, runtime settings, a database provider, Redis, migrations, optional local email capture, typed DTOs, a Minimal API, a Blazor frontend, and an integration test that starts the distributed app.")
     $content = $content.Replace(
         "The migration service seeds local users in Development when ``--seed-users`` is enabled:",

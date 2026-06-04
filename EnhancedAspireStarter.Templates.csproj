@@ -4,11 +4,11 @@
     <TargetFramework>net10.0</TargetFramework>
     <PackageType>Template</PackageType>
     <PackageId>Vwzhang.EnhancedAspireStarter.Templates</PackageId>
-    <PackageVersion>0.1.18</PackageVersion>
-    <Title>Aspire Admin Starter Templates</Title>
+    <PackageVersion>0.1.19</PackageVersion>
+    <Title>Enhanced Aspire Starter Templates</Title>
     <Authors>vwzhang</Authors>
-    <Description>Project template for an Aspire admin starter with Blazor, Identity, PostgreSQL or SQL Server, Redis, pgAdmin, smtp4dev, migrations, admin modules, and a CRUD sample.</Description>
-    <PackageTags>dotnet;aspire;dotnet-aspire;aspnetcore;blazor;mudblazor;identity;postgresql;sqlserver;redis;pgadmin;smtp4dev;template;starter;admin-dashboard;admin-starter</PackageTags>
+    <Description>Project template for an enhanced Aspire starter with Blazor, Identity, PostgreSQL or SQL Server, Redis, pgAdmin, smtp4dev, migrations, admin modules, and a CRUD sample.</Description>
+    <PackageTags>dotnet;aspire;dotnet-aspire;aspnetcore;blazor;mudblazor;identity;postgresql;sqlserver;redis;pgadmin;smtp4dev;template;starter;enhanced-aspire;admin-dashboard;admin-starter</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/vwzhang/Starter</PackageProjectUrl>
     <RepositoryUrl>https://github.com/vwzhang/Starter.Template</RepositoryUrl>

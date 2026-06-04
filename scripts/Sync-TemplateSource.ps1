@@ -1,7 +1,7 @@
 param(
     [string] $SourceRepository = "C:\Aspire\Starter",
     [string] $TemplateContent = "C:\Aspire\Starter.Template\templates\enhanced-aspire-starter",
-    [string] $TemplateVersion = "0.1.18"
+    [string] $TemplateVersion = "0.1.19"
 )
 
 $ErrorActionPreference = "Stop"
@@ -42,7 +42,7 @@ if (Test-Path -LiteralPath $workspaceImage) {
 $readmePath = Join-Path $TemplateContent "README.md"
 if (Test-Path -LiteralPath $readmePath) {
     $readme = Get-Content -LiteralPath $readmePath -Raw
-    $readme = $readme.Replace("# Aspire Admin Starter", "# Starter")
+    $readme = $readme.Replace("# Enhanced Aspire Starter", "# Starter")
     $readme = $readme.Replace("[![CI](https://github.com/vwzhang/Starter/actions/workflows/ci.yml/badge.svg)](https://github.com/vwzhang/Starter/actions/workflows/ci.yml)`r`n", "")
     $readme = $readme.Replace("[![CI](https://github.com/vwzhang/Starter/actions/workflows/ci.yml/badge.svg)](https://github.com/vwzhang/Starter/actions/workflows/ci.yml)`n", "")
     $readme = $readme.Replace(
@@ -51,7 +51,7 @@ if (Test-Path -LiteralPath $readmePath) {
     $readme = $readme.Replace("![Starter Workspace](docs/assets/starter-workspace.png)", "![Starter Workspace](docs/assets/workspace.png)")
     $readme = $readme.Replace("## Why Use This", "## Why This App")
     $readme = $readme.Replace(
-        "Starting from a blank Aspire template is clean, but the first useful admin app usually needs the same foundation again and again. Aspire Admin Starter packages that foundation into a working application you can run, inspect, rename, and extend.",
+        "Starting from a blank Aspire template is clean, but the first useful admin app usually needs the same foundation again and again. Enhanced Aspire Starter packages that foundation into a working application you can run, inspect, rename, and extend.",
         "This application was generated from an enhanced Aspire template. It includes the foundation most teams add early: identity, roles, admin pages, runtime settings, a database provider, Redis, migrations, optional local email capture, typed DTOs, a Minimal API, a Blazor frontend, and an integration test that starts the distributed app.")
     $readme = $readme.Replace(
         "The migration service seeds local users in Development when ``--seed-users`` is enabled:",
@@ -94,7 +94,7 @@ namespace Starter.Shared;
 
 public static class TemplateInfo
 {
-    public const string Name = "Aspire Admin Starter";
+    public const string Name = "Enhanced Aspire St" + "arter";
     public const string Version = "$TemplateVersion";
 }
 "@
