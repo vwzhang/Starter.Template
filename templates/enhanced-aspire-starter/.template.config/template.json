@@ -23,12 +23,17 @@
   "preferNameDirectory": false,
   "tags": {
     "language": "C#",
-    "type": "solution"
+    "type": "solution",
+    "editorTreatAs": "solution"
   },
   "guids": [
     "f6e76cbf-2d79-4b8b-9023-113ac10e07f9"
   ],
   "symbols": {
+    "hostIdentifier": {
+      "type": "bind",
+      "binding": "HostIdentifier"
+    },
     "authorName": {
       "type": "parameter",
       "datatype": "text",
@@ -262,6 +267,12 @@
       "target": "./",
       "modifiers": [
         {
+          "condition": "(hostIdentifier != \"dotnetcli\" && hostIdentifier != \"dotnetcli-preview\")",
+          "exclude": [
+            "*.slnx"
+          ]
+        },
+        {
           "condition": "(usePostgreSql)",
           "exclude": [
             "Starter.Web/Data/Migrations.SqlServer/**",
@@ -294,10 +305,42 @@
   ],
   "primaryOutputs": [
     {
-      "path": "Starter.slnx"
+      "path": "Starter.slnx",
+      "condition": "(hostIdentifier == \"dotnetcli\" || hostIdentifier == \"dotnetcli-preview\")"
+    },
+    {
+      "path": "Starter.AppHost\\Starter.AppHost.csproj"
+    },
+    {
+      "path": "Starter.ApiService\\Starter.ApiService.csproj"
+    },
+    {
+      "path": "Starter.MigrationService\\Starter.MigrationService.csproj"
+    },
+    {
+      "path": "Starter.ServiceDefaults\\Starter.ServiceDefaults.csproj"
+    },
+    {
+      "path": "Starter.Shared\\Starter.Shared.csproj"
+    },
+    {
+      "path": "Starter.Tests\\Starter.Tests.csproj"
+    },
+    {
+      "path": "Starter.Web\\Starter.Web.csproj"
     }
   ],
   "postActions": [
+    {
+      "id": "set-startup-project",
+      "description": "Sets the AppHost project as the startup project in Visual Studio.",
+      "manualInstructions": [],
+      "actionId": "5BECCC32-4D5A-4476-A0F9-BD2E81AF0689",
+      "condition": "(hostIdentifier == \"vs\")",
+      "args": {
+        "projects": "0"
+      }
+    },
     {
       "description": "Restore NuGet packages",
       "condition": "(!skipRestore)",
