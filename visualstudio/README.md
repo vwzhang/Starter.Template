@@ -10,9 +10,21 @@ The VSIX shows an options page after Create with the same major options as the `
 
 Requires Visual Studio with the Visual Studio extension development workload.
 
+You can open `EnhancedAspireStarter.VisualStudio.slnx` in Visual Studio and build the solution. The build project calls `Build-Vsix.ps1` and writes the VSIX to the shared artifacts folder.
+
+Command-line build:
+
 ```powershell
 .\visualstudio\Build-Vsix.ps1
 ```
+
+Or through the Visual Studio build solution:
+
+```powershell
+dotnet build .\visualstudio\EnhancedAspireStarter.VisualStudio.slnx
+```
+
+Pass `/p:VisualStudioVsixVersion=0.1.23` when you want to build a one-off version without changing script defaults.
 
 Output:
 

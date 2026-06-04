@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>EnhancedAspireStarter.VisualStudio.Build</RootNamespace>
+    <AssemblyName>EnhancedAspireStarter.VisualStudio.Build</AssemblyName>
+    <BuildVsixOnBuild Condition="'$(BuildVsixOnBuild)' == ''">true</BuildVsixOnBuild>
+    <VsixBuildScript>$(MSBuildThisFileDirectory)..\Build-Vsix.ps1</VsixBuildScript>
+    <VsixArtifactsDirectory>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\..\artifacts\vsix'))</VsixArtifactsDirectory>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(VisualStudioVsixVersion)' != ''">
+    <BuildVsixVersionArgument> -Version &quot;$(VisualStudioVsixVersion)&quot;</BuildVsixVersionArgument>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\Build-Vsix.ps1" Link="Build-Vsix.ps1" />
+    <None Include="..\Clear-VisualStudioTemplateCache.ps1" Link="Clear-VisualStudioTemplateCache.ps1" />
+    <None Include="..\Publish-Marketplace.ps1" Link="Publish-Marketplace.ps1" />
+    <None Include="..\marketplace.publish.json" Link="marketplace.publish.json" />
+    <None Include="..\overview.md" Link="overview.md" />
+    <None Include="..\README.md" Link="README.md" />
+  </ItemGroup>
+
+  <Target Name="BuildEnhancedAspireStarterVsix" AfterTargets="Build" Condition="'$(BuildVsixOnBuild)' == 'true'">
+    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(VsixBuildScript)&quot;$(BuildVsixVersionArgument)" />
+    <Message Importance="High" Text="Enhanced Aspire Starter VSIX artifacts were written to $(VsixArtifactsDirectory)." />
+  </Target>
+
+  <Target Name="CleanEnhancedAspireStarterVsix" AfterTargets="Clean">
+    <RemoveDir Directories="$(VsixArtifactsDirectory)\obj" />
+  </Target>
+</Project>

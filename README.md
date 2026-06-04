@@ -116,11 +116,19 @@ When `--seed-users true` is used:
 
 ## Visual Studio VSIX
 
-Build the VSIX:
+Build the VSIX directly:
 
 ```powershell
 .\visualstudio\Build-Vsix.ps1
 ```
+
+Or open and build the dedicated Visual Studio packaging solution:
+
+```powershell
+dotnet build .\visualstudio\EnhancedAspireStarter.VisualStudio.slnx
+```
+
+Pass `/p:VisualStudioVsixVersion=0.1.23` to build a one-off VSIX version.
 
 Output:
 
