@@ -17,12 +17,14 @@ Requires Visual Studio with the Visual Studio extension development workload.
 Output:
 
 ```text
-artifacts\vsix\EnhancedAspireStarter.VisualStudio.0.1.17.vsix
+artifacts\vsix\EnhancedAspireStarter.VisualStudio.0.1.18.vsix
 ```
 
 Double-click the VSIX to install it locally. Restart Visual Studio, then search for `Aspire Admin Starter` in the New Project dialog.
 
 The database provider dropdown supports PostgreSQL and SQL Server. Selecting SQL Server disables pgAdmin because pgAdmin only applies to PostgreSQL.
+
+After project creation, the wizard cleans provider-specific template blocks and sets the generated AppHost project as the startup project.
 
 ## Publish
 
@@ -40,7 +42,7 @@ The publish script finds `VsixPublisher.exe` through Visual Studio SDK installat
 After changing the source starter app:
 
 ```powershell
-.\scripts\Update-Template.ps1 -SourceRepository C:\Aspire\Starter -TemplateVersion 0.1.17
+.\scripts\Update-Template.ps1 -SourceRepository C:\Aspire\Starter -TemplateVersion 0.1.18
 ```
 
 Use the generated app's `*.Shared\TemplateInfo.cs` file to confirm which template version Visual Studio used.

@@ -1,7 +1,7 @@
 param(
     [string] $TemplateSource = (Join-Path $PSScriptRoot "..\templates\enhanced-aspire-starter"),
     [string] $OutputDirectory = (Join-Path $PSScriptRoot "..\artifacts\vsix"),
-    [string] $Version = "0.1.17",
+    [string] $Version = "0.1.18",
     [string] $Publisher = "vwzhang"
 )
 
@@ -217,8 +217,12 @@ namespace AspireAdminStarter.VisualStudio
     public sealed class AspireAdminStarterWizard : IWizard
     {
         private readonly List<string> projectDirectories = new List<string>();
+        private string destinationDirectory;
+        private DTE dte;
         private bool includePgAdminForPostgreSql;
         private bool includeSmtp4dev;
+        private string requestedProjectName;
+        private string solutionDirectory;
         private bool usePostgreSql;
         private bool useSqlServer;
 
@@ -228,7 +232,11 @@ namespace AspireAdminStarter.VisualStudio
             WizardRunKind runKind,
             object[] customParams)
         {
+            dte = automationObject as DTE;
             var projectName = GetReplacement(replacementsDictionary, "$safeprojectname$", "MyAspireAdmin");
+            requestedProjectName = projectName;
+            destinationDirectory = GetReplacement(replacementsDictionary, "$destinationdirectory$", string.Empty);
+            solutionDirectory = GetReplacement(replacementsDictionary, "$solutiondirectory$", string.Empty);
             var defaultDatabaseName = ToResourceName(projectName) + "db";
             Application.EnableVisualStyles();
             var owner = OwnerWindow.FromAutomationObject(automationObject);
@@ -301,6 +309,9 @@ namespace AspireAdminStarter.VisualStudio
 
         public void RunFinished()
         {
+            CaptureSolutionProjectDirectories();
+            SetAppHostStartupProject();
+
             var root = GetGeneratedRoot();
             if (string.IsNullOrWhiteSpace(root) || !Directory.Exists(root))
             {
@@ -309,26 +320,210 @@ namespace AspireAdminStarter.VisualStudio
 
             DeleteInactiveMigrationDirectories(root);
             ProcessConditionalTemplateBlocks(root);
+            SetAppHostStartupProject();
+        }
+
+        private void CaptureSolutionProjectDirectories()
+        {
+            if (dte == null || dte.Solution == null)
+            {
+                return;
+            }
+
+            foreach (var project in GetSolutionProjects())
+            {
+                if (project == null || string.IsNullOrWhiteSpace(project.FullName))
+                {
+                    continue;
+                }
+
+                var projectDirectory = Path.GetDirectoryName(project.FullName);
+                if (!string.IsNullOrWhiteSpace(projectDirectory) && !projectDirectories.Contains(projectDirectory, StringComparer.OrdinalIgnoreCase))
+                {
+                    projectDirectories.Add(projectDirectory);
+                }
+            }
+        }
+
+        private IEnumerable<Project> GetSolutionProjects()
+        {
+            if (dte == null || dte.Solution == null)
+            {
+                yield break;
+            }
+
+            foreach (Project project in dte.Solution.Projects)
+            {
+                foreach (var childProject in EnumerateProjects(project))
+                {
+                    yield return childProject;
+                }
+            }
+        }
+
+        private static IEnumerable<Project> EnumerateProjects(Project project)
+        {
+            if (project == null)
+            {
+                yield break;
+            }
+
+            yield return project;
+
+            if (project.ProjectItems == null)
+            {
+                yield break;
+            }
+
+            foreach (ProjectItem item in project.ProjectItems)
+            {
+                Project subProject = null;
+
+                try
+                {
+                    subProject = item.SubProject;
+                }
+                catch
+                {
+                    subProject = null;
+                }
+
+                if (subProject == null)
+                {
+                    continue;
+                }
+
+                foreach (var childProject in EnumerateProjects(subProject))
+                {
+                    yield return childProject;
+                }
+            }
+        }
+
+        private void SetAppHostStartupProject()
+        {
+            if (dte == null || dte.Solution == null)
+            {
+                return;
+            }
+
+            var appHostProject = GetSolutionProjects()
+                .FirstOrDefault(project =>
+                    !string.IsNullOrWhiteSpace(project.FullName)
+                    && project.FullName.EndsWith(".AppHost.csproj", StringComparison.OrdinalIgnoreCase));
+
+            if (appHostProject == null || string.IsNullOrWhiteSpace(appHostProject.UniqueName))
+            {
+                return;
+            }
+
+            dte.Solution.SolutionBuild.StartupProjects = new object[] { appHostProject.UniqueName };
         }
 
         private string GetGeneratedRoot()
         {
             var firstProjectDirectory = projectDirectories.FirstOrDefault();
-            if (string.IsNullOrWhiteSpace(firstProjectDirectory))
+            if (!string.IsNullOrWhiteSpace(firstProjectDirectory))
+            {
+                var parent = Directory.GetParent(firstProjectDirectory);
+                if (parent == null)
+                {
+                    return firstProjectDirectory;
+                }
+
+                var parentPath = parent.FullName.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
+                return projectDirectories.All(path => path.StartsWith(parentPath, StringComparison.OrdinalIgnoreCase))
+                    ? parent.FullName
+                    : firstProjectDirectory;
+            }
+
+            foreach (var candidate in GetRootCandidates())
+            {
+                var root = NormalizeGeneratedRootCandidate(candidate);
+                if (!string.IsNullOrWhiteSpace(root))
+                {
+                    return root;
+                }
+            }
+
+            return string.Empty;
+        }
+
+        private IEnumerable<string> GetRootCandidates()
+        {
+            if (!string.IsNullOrWhiteSpace(solutionDirectory))
+            {
+                yield return solutionDirectory;
+            }
+
+            if (!string.IsNullOrWhiteSpace(destinationDirectory))
+            {
+                yield return destinationDirectory;
+            }
+
+            if (!string.IsNullOrWhiteSpace(destinationDirectory))
+            {
+                var parent = Directory.GetParent(destinationDirectory);
+                if (parent != null)
+                {
+                    yield return parent.FullName;
+                }
+            }
+
+            if (dte != null && dte.Solution != null && !string.IsNullOrWhiteSpace(dte.Solution.FullName))
+            {
+                var solutionFileDirectory = Path.GetDirectoryName(dte.Solution.FullName);
+                if (!string.IsNullOrWhiteSpace(solutionFileDirectory))
+                {
+                    yield return solutionFileDirectory;
+                }
+            }
+        }
+
+        private string NormalizeGeneratedRootCandidate(string candidate)
+        {
+            if (string.IsNullOrWhiteSpace(candidate) || !Directory.Exists(candidate))
             {
                 return string.Empty;
             }
 
-            var parent = Directory.GetParent(firstProjectDirectory);
-            if (parent == null)
+            var directoryName = Path.GetFileName(candidate.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+            if (!string.IsNullOrWhiteSpace(directoryName)
+                && directoryName.EndsWith(".AppHost", StringComparison.OrdinalIgnoreCase)
+                && Directory.GetParent(candidate) != null)
             {
-                return firstProjectDirectory;
+                var parent = Directory.GetParent(candidate).FullName;
+                if (HasAppHostProject(parent))
+                {
+                    return parent;
+                }
             }
 
-            var parentPath = parent.FullName.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
-            return projectDirectories.All(path => path.StartsWith(parentPath, StringComparison.OrdinalIgnoreCase))
-                ? parent.FullName
-                : firstProjectDirectory;
+            if (HasAppHostProject(candidate))
+            {
+                return candidate;
+            }
+
+            if (!string.IsNullOrWhiteSpace(requestedProjectName))
+            {
+                var nestedProjectRoot = Path.Combine(candidate, requestedProjectName + ".AppHost");
+                if (Directory.Exists(nestedProjectRoot) && HasAppHostProject(candidate))
+                {
+                    return candidate;
+                }
+            }
+
+            return string.Empty;
+        }
+
+        private static bool HasAppHostProject(string root)
+        {
+            if (string.IsNullOrWhiteSpace(root) || !Directory.Exists(root))
+            {
+                return false;
+            }
+
+            return Directory.GetFiles(root, "*.AppHost.csproj", SearchOption.AllDirectories).Any();
         }
 
         private void DeleteInactiveMigrationDirectories(string root)
@@ -1293,8 +1488,8 @@ function Write-RootTemplate([string] $Path) {
   </TemplateData>
   <TemplateContent>
     <ProjectCollection>
-      <ProjectTemplateLink ProjectName="$safeprojectname$.ApiService" CopyParameters="true">Starter.ApiService\Starter.ApiService.vstemplate</ProjectTemplateLink>
       <ProjectTemplateLink ProjectName="$safeprojectname$.AppHost" CopyParameters="true">Starter.AppHost\Starter.AppHost.vstemplate</ProjectTemplateLink>
+      <ProjectTemplateLink ProjectName="$safeprojectname$.ApiService" CopyParameters="true">Starter.ApiService\Starter.ApiService.vstemplate</ProjectTemplateLink>
       <ProjectTemplateLink ProjectName="$safeprojectname$.MigrationService" CopyParameters="true">Starter.MigrationService\Starter.MigrationService.vstemplate</ProjectTemplateLink>
       <ProjectTemplateLink ProjectName="$safeprojectname$.ServiceDefaults" CopyParameters="true">Starter.ServiceDefaults\Starter.ServiceDefaults.vstemplate</ProjectTemplateLink>
       <ProjectTemplateLink ProjectName="$safeprojectname$.Shared" CopyParameters="true">Starter.Shared\Starter.Shared.vstemplate</ProjectTemplateLink>
@@ -1414,8 +1609,8 @@ New-Item -ItemType Directory -Path (Join-Path $vsixProjectRoot "bin\Release") -F
 New-Item -ItemType Directory -Path $outputPath -Force | Out-Null
 
 $projects = @(
-    "Starter.ApiService",
     "Starter.AppHost",
+    "Starter.ApiService",
     "Starter.MigrationService",
     "Starter.ServiceDefaults",
     "Starter.Shared",
