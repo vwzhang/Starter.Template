@@ -1,7 +1,7 @@
 param(
     [string] $TemplateSource = (Join-Path $PSScriptRoot "..\templates\enhanced-aspire-starter"),
     [string] $OutputDirectory = (Join-Path $PSScriptRoot "..\artifacts\vsix"),
-    [string] $Version = "0.1.15",
+    [string] $Version = "0.1.16",
     [string] $Publisher = "vwzhang"
 )
 
@@ -58,6 +58,53 @@ function Convert-DotNetTemplateConditionDirectives([string] $Content) {
     $content = $content -replace '(?m)^[ \t]*@\*#endif\*@\s*$', '$endif$'
     $content = $content -replace '(?m)^[ \t]*@\*#(if|elseif|else|endif).*?\*@\s*(\r?\n)?', ''
     $content -replace '(?m)^[ \t]*<!--#(if|elseif|else|endif).*?-->\s*(\r?\n)?', ''
+}
+
+function Set-VsixProviderPackagePlaceholder(
+    [string] $Path,
+    [string] $PostgreSqlPackageName,
+    [string] $SqlServerPackageName,
+    [string] $PlaceholderName
+) {
+    $content = [System.IO.File]::ReadAllText($Path)
+    $pattern = '(?ms)\r?\n\$if\$ \(\$ext_aspireadmin_usepostgresql\$ == True\)\r?\n[ \t]*<PackageReference Include="' +
+        [regex]::Escape($PostgreSqlPackageName) +
+        '" Version="[^"]+" />\r?\n\$endif\$\r?\n\$if\$ \(\$ext_aspireadmin_usesqlserver\$ == True\)\r?\n[ \t]*<PackageReference Include="' +
+        [regex]::Escape($SqlServerPackageName) +
+        '" Version="[^"]+" />\r?\n\$endif\$'
+    $replacement = "`r`n    `$ext_aspireadmin_$PlaceholderName`$"
+    $updated = [regex]::Replace($content, $pattern, $replacement)
+
+    if ($updated -eq $content) {
+        throw "Could not replace provider package conditional block in $Path"
+    }
+
+    Write-Utf8NoBom $Path $updated
+}
+
+function Convert-VsixProjectFileConditionals([string] $TemplateRoot) {
+    Set-VsixProviderPackagePlaceholder `
+        (Join-Path $TemplateRoot "Starter.AppHost\Starter.AppHost.csproj") `
+        "Aspire.Hosting.PostgreSQL" `
+        "Aspire.Hosting.SqlServer" `
+        "apphostdatabasepackagereference"
+
+    foreach ($projectFile in @(
+        (Join-Path $TemplateRoot "Starter.ApiService\Starter.ApiService.csproj"),
+        (Join-Path $TemplateRoot "Starter.MigrationService\Starter.MigrationService.csproj")
+    )) {
+        Set-VsixProviderPackagePlaceholder `
+            $projectFile `
+            "Aspire.Npgsql.EntityFrameworkCore.PostgreSQL" `
+            "Aspire.Microsoft.EntityFrameworkCore.SqlServer" `
+            "aspireefdatabasepackagereference"
+    }
+
+    Set-VsixProviderPackagePlaceholder `
+        (Join-Path $TemplateRoot "Starter.Web\Starter.Web.csproj") `
+        "Npgsql.EntityFrameworkCore.PostgreSQL" `
+        "Microsoft.EntityFrameworkCore.SqlServer" `
+        "webefdatabasepackagereference"
 }
 
 function Escape-Xml([string] $Value) {
@@ -196,6 +243,9 @@ namespace AspireAdminStarter.VisualStudio
                 SetReplacement(replacementsDictionary, "$aspireadmin_includepgadmin$", ToTemplateBoolean(form.IncludePgAdmin));
                 SetReplacement(replacementsDictionary, "$aspireadmin_includepgadminforpostgresql$", ToTemplateBoolean(form.IncludePgAdminForPostgreSql));
                 SetReplacement(replacementsDictionary, "$aspireadmin_includesmtp4dev$", ToTemplateBoolean(form.IncludeSmtp4dev));
+                SetReplacement(replacementsDictionary, "$aspireadmin_apphostdatabasepackagereference$", form.AppHostDatabasePackageReference);
+                SetReplacement(replacementsDictionary, "$aspireadmin_aspireefdatabasepackagereference$", form.AspireEfDatabasePackageReference);
+                SetReplacement(replacementsDictionary, "$aspireadmin_webefdatabasepackagereference$", form.WebEfDatabasePackageReference);
                 SetReplacement(replacementsDictionary, "$aspireadmin_seedcatalogsampledatavalue$", form.SeedSampleData ? "true" : "false");
                 SetReplacement(replacementsDictionary, "$aspireadmin_seeddevelopmenttestusersvalue$", form.SeedUsers ? "true" : "false");
             }
@@ -406,7 +456,7 @@ namespace AspireAdminStarter.VisualStudio
 
             var okButton = new Button
             {
-                Text = "Create",
+                Text = "Next",
                 DialogResult = DialogResult.OK,
                 Location = new Point(360, 384),
                 Size = new Size(82, 28)
@@ -477,6 +527,36 @@ namespace AspireAdminStarter.VisualStudio
         public bool IncludeSmtp4dev
         {
             get { return includeSmtp4devCheckBox.Checked; }
+        }
+
+        public string AppHostDatabasePackageReference
+        {
+            get
+            {
+                return UseSqlServer
+                    ? "<PackageReference Include=\"Aspire.Hosting.SqlServer\" Version=\"13.4.0\" />"
+                    : "<PackageReference Include=\"Aspire.Hosting.PostgreSQL\" Version=\"13.4.0\" />";
+            }
+        }
+
+        public string AspireEfDatabasePackageReference
+        {
+            get
+            {
+                return UseSqlServer
+                    ? "<PackageReference Include=\"Aspire.Microsoft.EntityFrameworkCore.SqlServer\" Version=\"13.4.0\" />"
+                    : "<PackageReference Include=\"Aspire.Npgsql.EntityFrameworkCore.PostgreSQL\" Version=\"13.4.0\" />";
+            }
+        }
+
+        public string WebEfDatabasePackageReference
+        {
+            get
+            {
+                return UseSqlServer
+                    ? "<PackageReference Include=\"Microsoft.EntityFrameworkCore.SqlServer\" Version=\"10.0.8\" />"
+                    : "<PackageReference Include=\"Npgsql.EntityFrameworkCore.PostgreSQL\" Version=\"10.0.2\" />";
+            }
         }
 
         public bool SeedUsers
@@ -568,10 +648,43 @@ namespace AspireAdminStarter.VisualStudio
             button.FlatStyle = FlatStyle.Flat;
             button.UseVisualStyleBackColor = false;
             button.BackColor = theme.ButtonBackground;
-            button.ForeColor = theme.ButtonText;
+            button.ForeColor = EnsureReadableTextColor(theme.ButtonText, theme.ButtonBackground);
             button.FlatAppearance.BorderColor = theme.ButtonBorder;
             button.FlatAppearance.MouseOverBackColor = theme.ButtonHoverBackground;
             button.FlatAppearance.MouseDownBackColor = theme.ButtonPressedBackground;
+        }
+
+        private static Color EnsureReadableTextColor(Color foreground, Color background)
+        {
+            if (ContrastRatio(foreground, background) >= 4.5)
+            {
+                return foreground;
+            }
+
+            return ContrastRatio(Color.Black, background) >= ContrastRatio(Color.White, background)
+                ? Color.Black
+                : Color.White;
+        }
+
+        private static double ContrastRatio(Color foreground, Color background)
+        {
+            var foregroundLuminance = RelativeLuminance(foreground);
+            var backgroundLuminance = RelativeLuminance(background);
+            var lighter = Math.Max(foregroundLuminance, backgroundLuminance);
+            var darker = Math.Min(foregroundLuminance, backgroundLuminance);
+
+            return (lighter + 0.05) / (darker + 0.05);
+        }
+
+        private static double RelativeLuminance(Color color)
+        {
+            return 0.2126 * Linearize(color.R) + 0.7152 * Linearize(color.G) + 0.0722 * Linearize(color.B);
+        }
+
+        private static double Linearize(byte channel)
+        {
+            var value = channel / 255.0;
+            return value <= 0.03928 ? value / 12.92 : Math.Pow((value + 0.055) / 1.055, 2.4);
         }
 
         private void UpdateProviderOptions()
@@ -1101,6 +1214,7 @@ foreach ($project in $projects) {
 }
 
 Convert-ToTemplateTokenizedFiles $templateRoot
+Convert-VsixProjectFileConditionals $templateRoot
 Write-RootTemplate (Join-Path $templateRoot "EnhancedAspireStarter.vstemplate")
 
 $projectDescriptions = @{
