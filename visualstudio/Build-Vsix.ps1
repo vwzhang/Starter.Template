@@ -1,7 +1,7 @@
 param(
     [string] $TemplateSource = (Join-Path $PSScriptRoot "..\templates\enhanced-aspire-starter"),
     [string] $OutputDirectory = (Join-Path $PSScriptRoot "..\artifacts\vsix"),
-    [string] $Version = "0.1.16",
+    [string] $Version = "0.1.17",
     [string] $Publisher = "vwzhang"
 )
 
@@ -204,8 +204,10 @@ function Write-WizardProjectFiles(
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Text;
 using System.Windows.Forms;
 using EnvDTE;
 using Microsoft.VisualStudio.TemplateWizard;
@@ -214,6 +216,10 @@ namespace AspireAdminStarter.VisualStudio
 {
     public sealed class AspireAdminStarterWizard : IWizard
     {
+        private readonly List<string> projectDirectories = new List<string>();
+        private bool includePgAdminForPostgreSql;
+        private bool includeSmtp4dev;
+        private bool usePostgreSql;
         private bool useSqlServer;
 
         public void RunStarted(
@@ -235,6 +241,9 @@ namespace AspireAdminStarter.VisualStudio
                     throw new WizardCancelledException("Aspire Admin Starter creation was canceled.");
                 }
 
+                includePgAdminForPostgreSql = form.IncludePgAdminForPostgreSql;
+                includeSmtp4dev = form.IncludeSmtp4dev;
+                usePostgreSql = form.UsePostgreSql;
                 useSqlServer = form.UseSqlServer;
                 SetReplacement(replacementsDictionary, "$aspireadmin_databaseprovider$", form.DatabaseProvider);
                 SetReplacement(replacementsDictionary, "$aspireadmin_usepostgresql$", ToTemplateBoolean(form.UsePostgreSql));
@@ -253,6 +262,16 @@ namespace AspireAdminStarter.VisualStudio
 
         public void ProjectFinishedGenerating(Project project)
         {
+            if (project == null || string.IsNullOrWhiteSpace(project.FullName))
+            {
+                return;
+            }
+
+            var projectDirectory = Path.GetDirectoryName(project.FullName);
+            if (!string.IsNullOrWhiteSpace(projectDirectory) && !projectDirectories.Contains(projectDirectory, StringComparer.OrdinalIgnoreCase))
+            {
+                projectDirectories.Add(projectDirectory);
+            }
         }
 
         public void ProjectItemFinishedGenerating(ProjectItem projectItem)
@@ -282,6 +301,201 @@ namespace AspireAdminStarter.VisualStudio
 
         public void RunFinished()
         {
+            var root = GetGeneratedRoot();
+            if (string.IsNullOrWhiteSpace(root) || !Directory.Exists(root))
+            {
+                return;
+            }
+
+            DeleteInactiveMigrationDirectories(root);
+            ProcessConditionalTemplateBlocks(root);
+        }
+
+        private string GetGeneratedRoot()
+        {
+            var firstProjectDirectory = projectDirectories.FirstOrDefault();
+            if (string.IsNullOrWhiteSpace(firstProjectDirectory))
+            {
+                return string.Empty;
+            }
+
+            var parent = Directory.GetParent(firstProjectDirectory);
+            if (parent == null)
+            {
+                return firstProjectDirectory;
+            }
+
+            var parentPath = parent.FullName.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
+            return projectDirectories.All(path => path.StartsWith(parentPath, StringComparison.OrdinalIgnoreCase))
+                ? parent.FullName
+                : firstProjectDirectory;
+        }
+
+        private void DeleteInactiveMigrationDirectories(string root)
+        {
+            var inactiveDirectoryName = useSqlServer ? "Migrations" : "Migrations.SqlServer";
+
+            foreach (var directory in Directory.GetDirectories(root, inactiveDirectoryName, SearchOption.AllDirectories))
+            {
+                if (!IsProviderMigrationDirectory(directory))
+                {
+                    continue;
+                }
+
+                Directory.Delete(directory, true);
+            }
+        }
+
+        private static bool IsProviderMigrationDirectory(string directory)
+        {
+            var normalized = directory.Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar);
+            var parent = Directory.GetParent(directory);
+
+            return parent != null
+                && parent.Name.Equals("Data", StringComparison.OrdinalIgnoreCase)
+                && (normalized.IndexOf(".Web" + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) >= 0
+                    || normalized.IndexOf(".ApiService" + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) >= 0);
+        }
+
+        private void ProcessConditionalTemplateBlocks(string root)
+        {
+            foreach (var file in Directory.GetFiles(root, "*.*", SearchOption.AllDirectories))
+            {
+                if (!IsTextTemplateOutput(file))
+                {
+                    continue;
+                }
+
+                var content = File.ReadAllText(file);
+                if (content.IndexOf("$if$", StringComparison.Ordinal) < 0)
+                {
+                    continue;
+                }
+
+                var processed = ProcessConditionalTemplateContent(content);
+                if (!string.Equals(content, processed, StringComparison.Ordinal))
+                {
+                    File.WriteAllText(file, processed, new UTF8Encoding(false));
+                }
+            }
+        }
+
+        private static bool IsTextTemplateOutput(string file)
+        {
+            var extension = Path.GetExtension(file).ToLowerInvariant();
+            return extension == ".cs"
+                || extension == ".csproj"
+                || extension == ".json"
+                || extension == ".razor"
+                || extension == ".css"
+                || extension == ".html"
+                || extension == ".http"
+                || extension == ".md"
+                || extension == ".txt"
+                || extension == ".slnx"
+                || extension == ".config"
+                || extension == ".props"
+                || extension == ".targets"
+                || extension == ".xml"
+                || extension == ".yml"
+                || extension == ".yaml";
+        }
+
+        private string ProcessConditionalTemplateContent(string content)
+        {
+            var lines = content.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
+            var output = new List<string>();
+            var stack = new Stack<bool>();
+            var includeLine = true;
+
+            foreach (var line in lines)
+            {
+                var trimmed = line.Trim();
+                bool conditionEnabled;
+
+                if (TryGetConditionValue(trimmed, out conditionEnabled))
+                {
+                    stack.Push(includeLine);
+                    includeLine = includeLine && conditionEnabled;
+                    continue;
+                }
+
+                if (trimmed.Equals("$endif$", StringComparison.Ordinal))
+                {
+                    includeLine = stack.Count > 0 ? stack.Pop() : true;
+                    continue;
+                }
+
+                if (includeLine)
+                {
+                    output.Add(line);
+                }
+            }
+
+            return string.Join(Environment.NewLine, output);
+        }
+
+        private bool TryGetConditionValue(string line, out bool enabled)
+        {
+            enabled = false;
+
+            if (!line.StartsWith("$if$", StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            if (line.IndexOf("True == True", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                enabled = true;
+                return true;
+            }
+
+            if (line.IndexOf("False == True", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                enabled = false;
+                return true;
+            }
+
+            var start = line.IndexOf("$ext_aspireadmin_", StringComparison.Ordinal);
+            if (start < 0)
+            {
+                return false;
+            }
+
+            var end = line.IndexOf('$', start + 1);
+            if (end <= start)
+            {
+                return false;
+            }
+
+            var conditionKey = line.Substring(start + 1, end - start - 1);
+            enabled = IsConditionEnabled(conditionKey);
+            return true;
+        }
+
+        private bool IsConditionEnabled(string conditionKey)
+        {
+            if (conditionKey.Equals("ext_aspireadmin_includesmtp4dev", StringComparison.OrdinalIgnoreCase))
+            {
+                return includeSmtp4dev;
+            }
+
+            if (conditionKey.Equals("ext_aspireadmin_includepgadminforpostgresql", StringComparison.OrdinalIgnoreCase))
+            {
+                return includePgAdminForPostgreSql;
+            }
+
+            if (conditionKey.Equals("ext_aspireadmin_usepostgresql", StringComparison.OrdinalIgnoreCase))
+            {
+                return usePostgreSql;
+            }
+
+            if (conditionKey.Equals("ext_aspireadmin_usesqlserver", StringComparison.OrdinalIgnoreCase))
+            {
+                return useSqlServer;
+            }
+
+            return false;
         }
 
         private static string GetReplacement(

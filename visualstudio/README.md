@@ -17,7 +17,7 @@ Requires Visual Studio with the Visual Studio extension development workload.
 Output:
 
 ```text
-artifacts\vsix\EnhancedAspireStarter.VisualStudio.0.1.16.vsix
+artifacts\vsix\EnhancedAspireStarter.VisualStudio.0.1.17.vsix
 ```
 
 Double-click the VSIX to install it locally. Restart Visual Studio, then search for `Aspire Admin Starter` in the New Project dialog.
@@ -40,7 +40,7 @@ The publish script finds `VsixPublisher.exe` through Visual Studio SDK installat
 After changing the source starter app:
 
 ```powershell
-.\scripts\Update-Template.ps1 -SourceRepository C:\Aspire\Starter -TemplateVersion 0.1.16
+.\scripts\Update-Template.ps1 -SourceRepository C:\Aspire\Starter -TemplateVersion 0.1.17
 ```
 
 Use the generated app's `*.Shared\TemplateInfo.cs` file to confirm which template version Visual Studio used.
