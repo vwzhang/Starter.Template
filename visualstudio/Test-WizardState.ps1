@@ -22,36 +22,23 @@ function New-Replacements(
     [string] $ProjectName,
     [string] $Provider,
     [string] $DatabaseName,
-    [string] $SolutionRoot,
-    [bool] $IncludeOptions = $true,
-    [string] $TemplateMarker = "Root"
+    [string] $SolutionRoot
 ) {
     $values = [System.Collections.Generic.Dictionary[string,string]]::new()
     $values['$ext_safeprojectname$'] = $ProjectName
     $values['$safeprojectname$'] = $ProjectName
     $values['$destinationdirectory$'] = $SolutionRoot
     $values['$solutiondirectory$'] = $SolutionRoot
-    $values['$aspireadmin_projecttemplate$'] = $TemplateMarker
-    if ($IncludeOptions) {
-        Add-OptionReplacements $values $Provider $DatabaseName
-    }
+    $values['$ext_aspireadmin_databaseprovider$'] = $Provider
+    $values['$ext_aspireadmin_databasename$'] = $DatabaseName
+    $values['$ext_aspireadmin_usesqlserver$'] = if ($Provider -eq "SqlServer") { "True" } else { "False" }
+    $values['$ext_aspireadmin_usepostgresql$'] = if ($Provider -eq "PostgreSql") { "True" } else { "False" }
+    $values['$ext_aspireadmin_includepgadmin$'] = "True"
+    $values['$ext_aspireadmin_includepgadminforpostgresql$'] = if ($Provider -eq "PostgreSql") { "True" } else { "False" }
+    $values['$ext_aspireadmin_includesmtp4dev$'] = "True"
+    $values['$ext_aspireadmin_seeddevelopmenttestusersvalue$'] = "true"
+    $values['$ext_aspireadmin_seedcatalogsampledatavalue$'] = "true"
     return $values
-}
-
-function Add-OptionReplacements(
-    [System.Collections.Generic.Dictionary[string,string]] $Values,
-    [string] $Provider,
-    [string] $DatabaseName
-) {
-    $Values['$ext_aspireadmin_databaseprovider$'] = $Provider
-    $Values['$ext_aspireadmin_databasename$'] = $DatabaseName
-    $Values['$ext_aspireadmin_usesqlserver$'] = if ($Provider -eq "SqlServer") { "True" } else { "False" }
-    $Values['$ext_aspireadmin_usepostgresql$'] = if ($Provider -eq "PostgreSql") { "True" } else { "False" }
-    $Values['$ext_aspireadmin_includepgadmin$'] = "True"
-    $Values['$ext_aspireadmin_includepgadminforpostgresql$'] = if ($Provider -eq "PostgreSql") { "True" } else { "False" }
-    $Values['$ext_aspireadmin_includesmtp4dev$'] = "True"
-    $Values['$ext_aspireadmin_seeddevelopmenttestusersvalue$'] = "true"
-    $Values['$ext_aspireadmin_seedcatalogsampledatavalue$'] = "true"
 }
 
 function New-NestedProjectGroupContent([string] $ProjectName, [string] $SolutionRoot) {
@@ -72,37 +59,15 @@ function Invoke-WizardGeneration(
     [object] $RunKind,
     [string] $ProjectName,
     [string] $Provider,
-    [string] $DatabaseName,
-    [string] $StaleProvider = "",
-    [string] $StaleDatabaseName = ""
+    [string] $DatabaseName
 ) {
     $solutionRoot = Join-Path $ScratchRoot $ProjectName
     New-NestedProjectGroupContent $ProjectName $solutionRoot
 
     $wizard = [Activator]::CreateInstance($WizardType)
-    $replacements = New-Replacements $ProjectName $Provider $DatabaseName $solutionRoot $false "Root"
-    if (-not [string]::IsNullOrWhiteSpace($StaleProvider)) {
-        Add-OptionReplacements $replacements $StaleProvider $StaleDatabaseName
-    }
-
-    $env:ASPIRE_ADMIN_STARTER_DATABASE_PROVIDER = $Provider
-    $env:ASPIRE_ADMIN_STARTER_DATABASE_NAME = $DatabaseName
-    $env:ASPIRE_ADMIN_STARTER_INCLUDE_PGADMIN = "true"
-    $env:ASPIRE_ADMIN_STARTER_INCLUDE_SMTP4DEV = "true"
-    $env:ASPIRE_ADMIN_STARTER_SEED_USERS = "true"
-    $env:ASPIRE_ADMIN_STARTER_SEED_SAMPLE_DATA = "true"
-    try {
-        $wizard.RunStarted($null, $replacements, $RunKind, @())
-        $wizard.RunFinished()
-    }
-    finally {
-        Remove-Item Env:\ASPIRE_ADMIN_STARTER_DATABASE_PROVIDER -ErrorAction SilentlyContinue
-        Remove-Item Env:\ASPIRE_ADMIN_STARTER_DATABASE_NAME -ErrorAction SilentlyContinue
-        Remove-Item Env:\ASPIRE_ADMIN_STARTER_INCLUDE_PGADMIN -ErrorAction SilentlyContinue
-        Remove-Item Env:\ASPIRE_ADMIN_STARTER_INCLUDE_SMTP4DEV -ErrorAction SilentlyContinue
-        Remove-Item Env:\ASPIRE_ADMIN_STARTER_SEED_USERS -ErrorAction SilentlyContinue
-        Remove-Item Env:\ASPIRE_ADMIN_STARTER_SEED_SAMPLE_DATA -ErrorAction SilentlyContinue
-    }
+    $replacements = New-Replacements $ProjectName $Provider $DatabaseName $solutionRoot
+    $wizard.RunStarted($null, $replacements, $RunKind, @())
+    $wizard.RunFinished()
 
     $appHostPath = Join-Path $solutionRoot "$ProjectName.AppHost\AppHost.cs"
     $slnxPath = Join-Path $solutionRoot "$ProjectName.slnx"
@@ -142,7 +107,7 @@ New-Item -ItemType Directory -Path $ScratchRoot -Force | Out-Null
 
 try {
     $sql = Invoke-WizardGeneration $wizardType $runKind "HarnessSql" "SqlServer" "harnesssqldb"
-    $pg = Invoke-WizardGeneration $wizardType $runKind "HarnessPg" "PostgreSql" "harnesspgdb" "SqlServer" "harnesssqldb"
+    $pg = Invoke-WizardGeneration $wizardType $runKind "HarnessPg" "PostgreSql" "harnesspgdb"
 
     $checks = [System.Collections.Generic.List[object]]::new()
     Add-Check $checks "SQL AppHost created" $sql.AppHostExists

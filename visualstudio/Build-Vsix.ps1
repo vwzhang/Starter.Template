@@ -1,7 +1,7 @@
 param(
     [string] $TemplateSource = (Join-Path $PSScriptRoot "..\templates\enhanced-aspire-starter"),
     [string] $OutputDirectory = (Join-Path $PSScriptRoot "..\artifacts\vsix"),
-    [string] $Version = "0.1.37",
+    [string] $Version = "0.1.36",
     [string] $Publisher = "vwzhang"
 )
 
@@ -264,9 +264,6 @@ namespace EnhancedAspireStarter.VisualStudio
             destinationDirectory = GetReplacement(replacementsDictionary, "$destinationdirectory$", string.Empty);
             solutionDirectory = GetReplacement(replacementsDictionary, "$solutiondirectory$", string.Empty);
             var defaultDatabaseName = ToResourceName(projectName) + "db";
-            var projectTemplateName = GetReplacement(replacementsDictionary, "$aspireadmin_projecttemplate$", string.Empty);
-            var isRootTemplate = string.IsNullOrWhiteSpace(projectTemplateName)
-                || projectTemplateName.Equals("Root", StringComparison.OrdinalIgnoreCase);
             var generationKey = GetGenerationKey(solutionDirectory, destinationDirectory, projectName);
             Application.EnableVisualStyles();
             var owner = OwnerWindow.FromAutomationObject(automationObject);
@@ -277,11 +274,9 @@ namespace EnhancedAspireStarter.VisualStudio
                 configuredOptionsKey = generationKey;
             }
 
-            options = isRootTemplate
-                ? TryReadEnvironmentOptions(defaultDatabaseName)
-                : TryReadCopiedOptions(replacementsDictionary)
-                    ?? configuredOptions
-                    ?? TryReadEnvironmentOptions(defaultDatabaseName);
+            options = configuredOptions
+                ?? TryReadCopiedOptions(replacementsDictionary)
+                ?? TryReadEnvironmentOptions(defaultDatabaseName);
 
             if (options == null)
             {
@@ -299,7 +294,7 @@ namespace EnhancedAspireStarter.VisualStudio
 
             configuredOptions = options;
             SetOptionReplacements(replacementsDictionary, options);
-            Trace("RunStarted project=" + requestedProjectName + " template=" + projectTemplateName + " root=" + isRootTemplate + " destination=" + destinationDirectory + " solution=" + solutionDirectory);
+            Trace("RunStarted project=" + requestedProjectName + " destination=" + destinationDirectory + " solution=" + solutionDirectory);
         }
 
         public void ProjectFinishedGenerating(Project project)
