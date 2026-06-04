@@ -1,7 +1,7 @@
 param(
     [string] $TemplateSource = (Join-Path $PSScriptRoot "..\templates\enhanced-aspire-starter"),
     [string] $OutputDirectory = (Join-Path $PSScriptRoot "..\artifacts\vsix"),
-    [string] $Version = "0.1.30",
+    [string] $Version = "0.1.32",
     [string] $Publisher = "vwzhang"
 )
 
@@ -617,17 +617,22 @@ namespace EnhancedAspireStarter.VisualStudio
         {
             var solutionFile = GetSolutionFile(root);
             Trace("TryFinalize root=" + root + " solutionFile=" + solutionFile);
-            if (string.IsNullOrWhiteSpace(solutionFile) || !File.Exists(solutionFile))
-            {
-                Trace("TryFinalize skipped: solution file missing");
-                return;
-            }
 
-            var solutionRoot = Path.GetDirectoryName(solutionFile);
+            var solutionRoot = ResolveSolutionRoot(root, solutionFile);
             if (string.IsNullOrWhiteSpace(solutionRoot) || string.IsNullOrWhiteSpace(requestedProjectName))
             {
                 Trace("TryFinalize skipped: solution root or project name missing");
                 return;
+            }
+
+            if (string.IsNullOrWhiteSpace(solutionFile))
+            {
+                solutionFile = FindSolutionFile(solutionRoot);
+            }
+
+            if (string.IsNullOrWhiteSpace(solutionFile))
+            {
+                solutionFile = Path.Combine(solutionRoot, requestedProjectName + ".slnx");
             }
 
             var contentRoot = ResolveGeneratedContentRoot(root, solutionRoot);
@@ -649,11 +654,51 @@ namespace EnhancedAspireStarter.VisualStudio
             ScheduleFinalization(root, solutionFile);
         }
 
+        private string ResolveSolutionRoot(string root, string solutionFile)
+        {
+            if (!string.IsNullOrWhiteSpace(solutionFile))
+            {
+                var solutionFileDirectory = Path.GetDirectoryName(solutionFile);
+                if (!string.IsNullOrWhiteSpace(solutionFileDirectory))
+                {
+                    return solutionFileDirectory;
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(solutionDirectory))
+            {
+                return Path.GetFullPath(solutionDirectory);
+            }
+
+            if (!string.IsNullOrWhiteSpace(root)
+                && Directory.Exists(root)
+                && !string.IsNullOrWhiteSpace(requestedProjectName)
+                && Path.GetFileName(root.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)).Equals(requestedProjectName, StringComparison.OrdinalIgnoreCase))
+            {
+                var parent = Directory.GetParent(root);
+                if (parent != null)
+                {
+                    return parent.FullName;
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(destinationDirectory))
+            {
+                var parent = Directory.GetParent(destinationDirectory);
+                if (parent != null)
+                {
+                    return parent.FullName;
+                }
+            }
+
+            return root;
+        }
+
         private void ScheduleFinalization(string root, string solutionFile)
         {
             var timer = new Timer
             {
-                Interval = 1500
+                Interval = 5000
             };
 
             timer.Tick += delegate
@@ -699,6 +744,8 @@ namespace EnhancedAspireStarter.VisualStudio
                 Trace("Finalize skipped: solution root missing");
                 return;
             }
+
+            WaitForSolutionFile(solutionFile);
 
             var contentRoot = ResolveGeneratedContentRoot(root, solutionRoot);
             if (string.IsNullOrWhiteSpace(contentRoot) || !HasExpectedGeneratedProjects(contentRoot))
@@ -899,6 +946,7 @@ namespace EnhancedAspireStarter.VisualStudio
 
                 if (Directory.Exists(destinationDirectory))
                 {
+                    CopyDirectoryContent(sourceDirectory, destinationDirectory);
                     continue;
                 }
 
@@ -949,7 +997,102 @@ namespace EnhancedAspireStarter.VisualStudio
                 }
             }
 
-            Directory.Move(sourceDirectory, destinationDirectory);
+            CopyDirectoryContent(sourceDirectory, destinationDirectory);
+        }
+
+        private static void CopyDirectoryContent(string sourceDirectory, string destinationDirectory)
+        {
+            Directory.CreateDirectory(destinationDirectory);
+
+            foreach (var directory in Directory.GetDirectories(sourceDirectory, "*", SearchOption.AllDirectories))
+            {
+                if (ShouldSkipGeneratedDirectory(directory))
+                {
+                    continue;
+                }
+
+                var relativeDirectory = GetRelativePath(sourceDirectory, directory);
+                Directory.CreateDirectory(Path.Combine(destinationDirectory, relativeDirectory));
+            }
+
+            foreach (var file in Directory.GetFiles(sourceDirectory, "*", SearchOption.AllDirectories))
+            {
+                if (ShouldSkipGeneratedDirectory(Path.GetDirectoryName(file)))
+                {
+                    continue;
+                }
+
+                var relativeFile = GetRelativePath(sourceDirectory, file);
+                var destinationFile = Path.Combine(destinationDirectory, relativeFile);
+                var destinationFileDirectory = Path.GetDirectoryName(destinationFile);
+
+                if (!string.IsNullOrWhiteSpace(destinationFileDirectory))
+                {
+                    Directory.CreateDirectory(destinationFileDirectory);
+                }
+
+                CopyFileWithRetry(file, destinationFile);
+            }
+        }
+
+        private static bool ShouldSkipGeneratedDirectory(string directory)
+        {
+            if (string.IsNullOrWhiteSpace(directory))
+            {
+                return false;
+            }
+
+            foreach (var part in directory.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar))
+            {
+                if (part.Equals("bin", StringComparison.OrdinalIgnoreCase)
+                    || part.Equals("obj", StringComparison.OrdinalIgnoreCase)
+                    || part.Equals(".vs", StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static void CopyFileWithRetry(string sourceFile, string destinationFile)
+        {
+            for (var attempt = 0; attempt < 10; attempt++)
+            {
+                try
+                {
+                    File.Copy(sourceFile, destinationFile, true);
+                    return;
+                }
+                catch (IOException)
+                {
+                    System.Threading.Thread.Sleep(200);
+                }
+                catch (UnauthorizedAccessException)
+                {
+                    System.Threading.Thread.Sleep(200);
+                }
+            }
+
+            File.Copy(sourceFile, destinationFile, true);
+        }
+
+        private static void WaitForSolutionFile(string solutionFile)
+        {
+            if (string.IsNullOrWhiteSpace(solutionFile))
+            {
+                return;
+            }
+
+            for (var attempt = 0; attempt < 20; attempt++)
+            {
+                if (File.Exists(solutionFile))
+                {
+                    return;
+                }
+
+                System.Threading.Thread.Sleep(250);
+            }
         }
 
         private void RewriteSlnxProjectList(string solutionFile, string root)
@@ -1188,6 +1331,16 @@ namespace EnhancedAspireStarter.VisualStudio
             }
 
             return string.Empty;
+        }
+
+        private static string FindSolutionFile(string solutionRoot)
+        {
+            if (string.IsNullOrWhiteSpace(solutionRoot) || !Directory.Exists(solutionRoot))
+            {
+                return string.Empty;
+            }
+
+            return Directory.GetFiles(solutionRoot, "*.slnx", SearchOption.TopDirectoryOnly).FirstOrDefault() ?? string.Empty;
         }
 
         private IEnumerable<string> GetSolutionFileCandidateDirectories(string root)
