@@ -1,7 +1,7 @@
 param(
     [string] $TemplateSource = (Join-Path $PSScriptRoot "..\templates\enhanced-aspire-starter"),
     [string] $OutputDirectory = (Join-Path $PSScriptRoot "..\artifacts\vsix"),
-    [string] $Version = "0.1.34",
+    [string] $Version = "0.1.35",
     [string] $Publisher = "vwzhang"
 )
 
@@ -206,6 +206,8 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Linq;
+using System.Net;
+using System.Net.Sockets;
 using System.Reflection;
 using System.Text;
 using System.Windows.Forms;
@@ -1563,6 +1565,14 @@ namespace EnhancedAspireStarter.VisualStudio
         private static string BuildLaunchSettings()
         {
             var builder = new StringBuilder();
+            var dashboardHttpsPort = GetAvailablePort();
+            var dashboardHttpPort = GetAvailablePort(dashboardHttpsPort);
+            var otlpHttpsPort = GetAvailablePort(dashboardHttpsPort, dashboardHttpPort);
+            var mcpHttpsPort = GetAvailablePort(dashboardHttpsPort, dashboardHttpPort, otlpHttpsPort);
+            var resourceHttpsPort = GetAvailablePort(dashboardHttpsPort, dashboardHttpPort, otlpHttpsPort, mcpHttpsPort);
+            var otlpHttpPort = GetAvailablePort(dashboardHttpsPort, dashboardHttpPort, otlpHttpsPort, mcpHttpsPort, resourceHttpsPort);
+            var mcpHttpPort = GetAvailablePort(dashboardHttpsPort, dashboardHttpPort, otlpHttpsPort, mcpHttpsPort, resourceHttpsPort, otlpHttpPort);
+            var resourceHttpPort = GetAvailablePort(dashboardHttpsPort, dashboardHttpPort, otlpHttpsPort, mcpHttpsPort, resourceHttpsPort, otlpHttpPort, mcpHttpPort);
 
             builder.AppendLine("{");
             builder.AppendLine("  \"$schema\": \"https://json.schemastore.org/launchsettings.json\",");
@@ -1571,24 +1581,52 @@ namespace EnhancedAspireStarter.VisualStudio
             builder.AppendLine("      \"commandName\": \"Project\",");
             builder.AppendLine("      \"dotnetRunMessages\": true,");
             builder.AppendLine("      \"launchBrowser\": true,");
+            builder.Append("      \"applicationUrl\": \"https://localhost:").Append(dashboardHttpsPort).Append(";http://localhost:").Append(dashboardHttpPort).AppendLine("\",");
             builder.AppendLine("      \"environmentVariables\": {");
             builder.AppendLine("        \"ASPNETCORE_ENVIRONMENT\": \"Development\",");
-            builder.AppendLine("        \"DOTNET_ENVIRONMENT\": \"Development\"");
+            builder.AppendLine("        \"DOTNET_ENVIRONMENT\": \"Development\",");
+            builder.Append("        \"ASPIRE_DASHBOARD_OTLP_ENDPOINT_URL\": \"https://localhost:").Append(otlpHttpsPort).AppendLine("\",");
+            builder.Append("        \"ASPIRE_DASHBOARD_MCP_ENDPOINT_URL\": \"https://localhost:").Append(mcpHttpsPort).AppendLine("\",");
+            builder.Append("        \"ASPIRE_RESOURCE_SERVICE_ENDPOINT_URL\": \"https://localhost:").Append(resourceHttpsPort).AppendLine("\"");
             builder.AppendLine("      }");
             builder.AppendLine("    },");
             builder.AppendLine("    \"http\": {");
             builder.AppendLine("      \"commandName\": \"Project\",");
             builder.AppendLine("      \"dotnetRunMessages\": true,");
             builder.AppendLine("      \"launchBrowser\": true,");
+            builder.Append("      \"applicationUrl\": \"http://localhost:").Append(dashboardHttpPort).AppendLine("\",");
             builder.AppendLine("      \"environmentVariables\": {");
             builder.AppendLine("        \"ASPNETCORE_ENVIRONMENT\": \"Development\",");
-            builder.AppendLine("        \"DOTNET_ENVIRONMENT\": \"Development\"");
+            builder.AppendLine("        \"DOTNET_ENVIRONMENT\": \"Development\",");
+            builder.Append("        \"ASPIRE_DASHBOARD_OTLP_ENDPOINT_URL\": \"http://localhost:").Append(otlpHttpPort).AppendLine("\",");
+            builder.Append("        \"ASPIRE_DASHBOARD_MCP_ENDPOINT_URL\": \"http://localhost:").Append(mcpHttpPort).AppendLine("\",");
+            builder.Append("        \"ASPIRE_RESOURCE_SERVICE_ENDPOINT_URL\": \"http://localhost:").Append(resourceHttpPort).AppendLine("\"");
             builder.AppendLine("      }");
             builder.AppendLine("    }");
             builder.AppendLine("  }");
             builder.AppendLine("}");
 
             return builder.ToString();
+        }
+
+        private static int GetAvailablePort(params int[] reservedPorts)
+        {
+            var reserved = new HashSet<int>(reservedPorts);
+
+            for (var attempt = 0; attempt < 100; attempt++)
+            {
+                var listener = new TcpListener(IPAddress.Loopback, 0);
+                listener.Start();
+                var port = ((IPEndPoint)listener.LocalEndpoint).Port;
+                listener.Stop();
+
+                if (!reserved.Contains(port))
+                {
+                    return port;
+                }
+            }
+
+            throw new InvalidOperationException("Unable to allocate an available local port for Aspire launch settings.");
         }
 
         private static string GetRelativePath(string basePath, string path)
