@@ -1,10 +1,15 @@
 param(
     [string] $SourceRepository = "C:\Aspire\Starter",
     [string] $TemplateContent = "C:\Aspire\Starter.Template\templates\enhanced-aspire-starter",
-    [string] $TemplateVersion = "0.1.10"
+    [string] $TemplateVersion = "0.1.11"
 )
 
 $ErrorActionPreference = "Stop"
+
+function Remove-MarkdownSection([string] $Content, [string] $Heading) {
+    $escapedHeading = [regex]::Escape($Heading)
+    [regex]::Replace($Content, "(?ms)^## $escapedHeading\r?\n.*?(?=^## |\z)", "")
+}
 
 if (-not (Test-Path -LiteralPath (Join-Path $SourceRepository ".git"))) {
     throw "SourceRepository must be a git repository: $SourceRepository"
@@ -41,16 +46,32 @@ if (Test-Path -LiteralPath $readmePath) {
     $readme = $readme.Replace("[![CI](https://github.com/vwzhang/Starter/actions/workflows/ci.yml/badge.svg)](https://github.com/vwzhang/Starter/actions/workflows/ci.yml)`r`n", "")
     $readme = $readme.Replace("[![CI](https://github.com/vwzhang/Starter/actions/workflows/ci.yml/badge.svg)](https://github.com/vwzhang/Starter/actions/workflows/ci.yml)`n", "")
     $readme = $readme.Replace(
-        "An opinionated .NET 10 Aspire starter for building internal tools, admin portals, and full-stack line-of-business apps without spending the first day wiring infrastructure.",
-        "An opinionated .NET 10 Aspire app foundation for building internal tools, admin portals, and full-stack line-of-business apps without spending the first day wiring infrastructure.")
+        "A polished .NET 10 Aspire starter for internal tools, admin portals, and full-stack business apps. It gives you the infrastructure most projects need on day one: authentication, role-based admin pages, runtime settings, PostgreSQL, Redis, local email capture, migrations, a Minimal API, a Blazor frontend, shared DTOs, and a real database-backed CRUD slice.",
+        "A polished .NET 10 Aspire app foundation for internal tools, admin portals, and full-stack business apps. It includes the infrastructure most projects need on day one: authentication, role-based admin pages, runtime settings, PostgreSQL, Redis, local email capture, migrations, a Minimal API, a Blazor frontend, shared DTOs, and a real database-backed CRUD slice.")
     $readme = $readme.Replace("![Starter Workspace](docs/assets/starter-workspace.png)", "![Starter Workspace](docs/assets/workspace.png)")
-    $readme = $readme.Replace("## Why This Starter", "## Why This App")
+    $readme = $readme.Replace("## Why Use This", "## Why This App")
     $readme = $readme.Replace(
-        "This repository is meant to be cloned or used as a GitHub template when you want a real app foundation instead of a blank demo. It includes the pieces most teams add immediately: identity, roles, admin pages, PostgreSQL, Redis, migrations, local email capture, typed DTOs, a Minimal API, a Blazor frontend, and an integration test that starts the distributed app.",
-        "This repository was generated from an enhanced Aspire application template. It includes the pieces most teams add immediately: identity, roles, admin pages, PostgreSQL, Redis, migrations, local email capture, typed DTOs, a Minimal API, a Blazor frontend, and an integration test that starts the distributed app.")
+        "Starting from a blank Aspire template is clean, but the first useful app usually needs the same foundation again and again. Enhanced Aspire Starter packages that foundation into a working application you can run, inspect, rename, and extend.",
+        "This application was generated from an enhanced Aspire template. It includes the foundation most teams add early: identity, roles, admin pages, runtime settings, PostgreSQL, Redis, migrations, local email capture, typed DTOs, a Minimal API, a Blazor frontend, and an integration test that starts the distributed app.")
+    $readme = $readme.Replace(
+        "The migration service seeds local users in Development when ``--seed-users`` is enabled:",
+        "The migration service seeds local users in Development when test user seeding is enabled:")
     $readme = $readme.Replace(
         "`dotnet aspire starter`, `aspire template`, `blazor admin starter`, `aspnet core identity`, `mudblazor dashboard`, `postgresql aspire`, `minimal api starter`, `smtp4dev`, `ef core migrations`, `redis output cache`.",
         "`dotnet aspire`, `aspire template`, `blazor admin`, `aspnet core identity`, `mudblazor dashboard`, `postgresql aspire`, `minimal api`, `smtp4dev`, `ef core migrations`, `redis output cache`.")
+    $readme = Remove-MarkdownSection $readme "Create From The Template"
+    $readme = Remove-MarkdownSection $readme "Current Template Roadmap"
+    $generatedQuickStart = @"
+Run the full stack from the solution directory:
+
+``````powershell
+aspire start --apphost Starter.AppHost/Starter.AppHost.csproj
+``````
+"@
+    $readme = [regex]::Replace(
+        $readme,
+        '(?ms)^Clone and run the full stack:\r?\n\r?\n```powershell\r?\ngit clone https://github\.com/vwzhang/Starter\.git\r?\ncd Starter\r?\naspire start --apphost Starter\.AppHost/Starter\.AppHost\.csproj\r?\n```',
+        $generatedQuickStart)
     $versionLine = "Template version: ``$TemplateVersion``. The same value is available in ``Starter.Shared.TemplateInfo.Version``."
     $versionPattern = 'Template version: `[^`]+`\. The same value is available in `Starter\.Shared\.TemplateInfo\.Version`\.'
 
@@ -58,7 +79,7 @@ if (Test-Path -LiteralPath $readmePath) {
         $readme = [regex]::Replace($readme, $versionPattern, $versionLine)
     }
     else {
-        $generatedParagraph = "This repository was generated from an enhanced Aspire application template. It includes the pieces most teams add immediately: identity, roles, admin pages, PostgreSQL, Redis, migrations, local email capture, typed DTOs, a Minimal API, a Blazor frontend, and an integration test that starts the distributed app."
+        $generatedParagraph = "This application was generated from an enhanced Aspire template. It includes the foundation most teams add early: identity, roles, admin pages, runtime settings, PostgreSQL, Redis, migrations, local email capture, typed DTOs, a Minimal API, a Blazor frontend, and an integration test that starts the distributed app."
         $readme = $readme.Replace($generatedParagraph, "$generatedParagraph`r`n`r`n$versionLine")
     }
 

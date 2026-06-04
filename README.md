@@ -1,33 +1,75 @@
 # Enhanced Aspire Starter Template
 
-Installable `dotnet new` template package for the enhanced Aspire starter.
+![.NET](https://img.shields.io/badge/.NET-10.0-512BD4)
+![Aspire](https://img.shields.io/badge/Aspire-13.4-5C2D91)
+![Template](https://img.shields.io/badge/template-dotnet%20new-0E7C7B)
+![Visual Studio](https://img.shields.io/badge/Visual%20Studio-VSIX-5C2D91)
+![License](https://img.shields.io/badge/license-MIT-green)
 
-## Build The Template Package
+Installable templates for creating a polished .NET 10 Aspire application foundation with Blazor, ASP.NET Core Identity, PostgreSQL, Redis, pgAdmin, smtp4dev, a migration service, admin modules, system settings, shared DTOs, and a database-backed CRUD sample.
+
+Use the CLI template when you want options. Use the VSIX when you want a Visual Studio New Project experience with the complete default starter.
+
+## What It Creates
+
+| Area | Generated foundation |
+| --- | --- |
+| Aspire | AppHost with PostgreSQL 18, Redis, pgAdmin, smtp4dev, API, Web, and migrations |
+| Web | Blazor Web App, MudBlazor shell, app bar login state, admin/dev navigation |
+| Identity | Seeded admin/manager/user accounts, roles, permissions, self registration, forgot password |
+| Admin | Dashboard, users, roles, permissions, features, system configuration |
+| Data | EF Core migrations, PostgreSQL connection, API-owned Catalog sample |
+| Email | Runtime SMTP settings and local smtp4dev capture |
+| Quality | Restore/build-ready solution and Aspire integration smoke test |
+
+## Build The Package
 
 ```powershell
 dotnet pack
 ```
 
+Current local package:
+
+```text
+bin\Release\Vwzhang.EnhancedAspireStarter.Templates.0.1.11.nupkg
+```
+
 ## Install Locally
 
 ```powershell
-dotnet new install .\bin\Release\Vwzhang.EnhancedAspireStarter.Templates.0.1.10.nupkg
+dotnet new install .\bin\Release\Vwzhang.EnhancedAspireStarter.Templates.0.1.11.nupkg
+```
+
+Confirm the template is visible:
+
+```powershell
+dotnet new enhanced-aspire-starter --help
 ```
 
 ## Create A New App
 
 ```powershell
-dotnet new enhanced-aspire-starter -n MyStarter -o C:\Temp\MyStarter
-dotnet build C:\Temp\MyStarter\MyStarter.slnx
+dotnet new enhanced-aspire-starter -n AcmeOps -o C:\Code\AcmeOps
+cd C:\Code\AcmeOps
+dotnet build AcmeOps.slnx
+aspire start --apphost AcmeOps.AppHost\AcmeOps.AppHost.csproj
 ```
 
-Useful options:
+The generated app opens with:
+
+- Workspace dashboard at `/`
+- Admin login at `/admin/login`
+- Catalog CRUD sample at `/dev/catalog`
+- pgAdmin at `http://localhost:5050` when included
+- smtp4dev at `http://localhost:5080` when included
+
+## Template Options
 
 ```powershell
 dotnet new enhanced-aspire-starter `
-  -n MyStarter `
-  -o C:\Temp\MyStarter `
-  --database-name mystarterdb `
+  -n AcmeOps `
+  -o C:\Code\AcmeOps `
+  --database-name acmeopsdb `
   --include-pgadmin true `
   --include-smtp4dev true `
   --seed-users true `
@@ -37,36 +79,81 @@ dotnet new enhanced-aspire-starter `
 | Option | Default | Purpose |
 | --- | --- | --- |
 | `--database-name` | `<project-name>db` | PostgreSQL database and connection string name |
-| `--include-pgadmin` | `true` | Include local pgAdmin |
-| `--include-smtp4dev` | `true` | Include local email capture |
+| `--include-pgadmin` | `true` | Include local pgAdmin for inspecting PostgreSQL |
+| `--include-smtp4dev` | `true` | Include local email capture for account flows |
 | `--seed-users` | `true` | Seed admin, manager, and user test accounts |
 | `--seed-sample-data` | `true` | Seed catalog categories and products |
 
-Run the generated Aspire app:
+Useful examples:
 
 ```powershell
-cd C:\Temp\MyStarter
-aspire start --apphost MyStarter.AppHost\MyStarter.AppHost.csproj
+dotnet new enhanced-aspire-starter -n BackOffice -o C:\Code\BackOffice --database-name backoffice
+dotnet new enhanced-aspire-starter -n LeanApi -o C:\Code\LeanApi --include-pgadmin false --include-smtp4dev false
+dotnet new enhanced-aspire-starter -n CleanStart -o C:\Code\CleanStart --seed-users false --seed-sample-data false
 ```
 
-The generated app includes Blazor, ASP.NET Core Identity, PostgreSQL, Redis, pgAdmin, smtp4dev, a migration service, admin modules, system settings, and a CRUD sample.
+## Default Test Accounts
 
-## Build The Visual Studio VSIX
+When `--seed-users true` is used:
+
+| Email | Role | Password |
+| --- | --- | --- |
+| `admin@<project>.local` | Administrator | `Happy1..` |
+| `manager@<project>.local` | Manager | `Happy1..` |
+| `user@<project>.local` | User | `Happy1..` |
+
+## Visual Studio VSIX
+
+Build the VSIX:
 
 ```powershell
 .\visualstudio\Build-Vsix.ps1
 ```
 
-This produces `artifacts\vsix\EnhancedAspireStarter.VisualStudio.0.1.10.vsix` for local install or Visual Studio Marketplace upload.
+Output:
 
-The VSIX currently generates the complete default starter. Use the `dotnet new` package when you need the template options above.
-
-## Template Maintenance
-
-After updating the source starter app, run the release helper from this repository:
-
-```powershell
-.\scripts\Update-Template.ps1 -SourceRepository C:\Aspire\Starter -TemplateVersion 0.1.10
+```text
+artifacts\vsix\EnhancedAspireStarter.VisualStudio.0.1.11.vsix
 ```
 
-The helper syncs `templates\enhanced-aspire-starter`, preserves the generated `TemplateInfo.cs` version marker, updates package/VSIX version references, runs `dotnet pack`, and builds the Visual Studio VSIX.
+Install it, restart Visual Studio, then search for `Enhanced Aspire Starter` in the New Project dialog.
+
+The VSIX currently generates the complete default starter. The CLI package is the best path when you need the generation options.
+
+## Maintainer Workflow
+
+After changing the source starter app, run:
+
+```powershell
+.\scripts\Update-Template.ps1 -SourceRepository C:\Aspire\Starter -TemplateVersion 0.1.11
+```
+
+The helper:
+
+- Syncs source into `templates\enhanced-aspire-starter`
+- Converts the source README into a generated-project README
+- Updates `Starter.Shared.TemplateInfo.Version`
+- Updates package and VSIX version references
+- Runs `dotnet pack`
+- Builds the Visual Studio VSIX
+
+## Verification
+
+Recommended checks before publishing a new template version:
+
+```powershell
+dotnet new install .\bin\Release\Vwzhang.EnhancedAspireStarter.Templates.0.1.11.nupkg --force
+dotnet new enhanced-aspire-starter -n SmokeApp -o C:\Temp\SmokeApp --force
+dotnet build C:\Temp\SmokeApp\SmokeApp.slnx
+dotnet new enhanced-aspire-starter -n SlimApp -o C:\Temp\SlimApp --include-pgadmin false --include-smtp4dev false --seed-users false --seed-sample-data false --force
+dotnet build C:\Temp\SlimApp\SlimApp.slnx
+```
+
+## Links
+
+- Source app: `https://github.com/vwzhang/Starter`
+- Template repo: `https://github.com/vwzhang/Starter.Template`
+
+## License
+
+MIT

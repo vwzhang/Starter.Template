@@ -1,6 +1,6 @@
 param(
     [string] $SourceRepository = (Join-Path $PSScriptRoot "..\..\Starter"),
-    [string] $TemplateVersion = "0.1.10",
+    [string] $TemplateVersion = "0.1.11",
     [string] $Configuration = "Release",
     [switch] $SkipSync
 )
@@ -23,6 +23,11 @@ function Update-TextFile([string] $Path, [scriptblock] $Update) {
     if ($updated -ne $content) {
         [System.IO.File]::WriteAllText($resolvedPath, $updated, [System.Text.UTF8Encoding]::new($false))
     }
+}
+
+function Remove-MarkdownSection([string] $Content, [string] $Heading) {
+    $escapedHeading = [regex]::Escape($Heading)
+    [regex]::Replace($Content, "(?ms)^## $escapedHeading\r?\n.*?(?=^## |\z)", "")
 }
 
 $repoRoot = Resolve-FullPath (Join-Path $PSScriptRoot "..")
@@ -78,9 +83,29 @@ Update-TextFile (Join-Path $repoRoot "visualstudio\README.md") {
 
 Update-TextFile (Join-Path $templateRoot "README.md") {
     param($content)
+    $content = $content.Replace("## Why Use This", "## Why This App")
+    $content = $content.Replace(
+        "Starting from a blank Aspire template is clean, but the first useful app usually needs the same foundation again and again. Enhanced Aspire Starter packages that foundation into a working application you can run, inspect, rename, and extend.",
+        "This application was generated from an enhanced Aspire template. It includes the foundation most teams add early: identity, roles, admin pages, runtime settings, PostgreSQL, Redis, migrations, local email capture, typed DTOs, a Minimal API, a Blazor frontend, and an integration test that starts the distributed app.")
+    $content = $content.Replace(
+        "The migration service seeds local users in Development when ``--seed-users`` is enabled:",
+        "The migration service seeds local users in Development when test user seeding is enabled:")
     $content = $content.Replace(
         "`dotnet aspire starter`, `aspire template`, `blazor admin starter`, `aspnet core identity`, `mudblazor dashboard`, `postgresql aspire`, `minimal api starter`, `smtp4dev`, `ef core migrations`, `redis output cache`.",
         "`dotnet aspire`, `aspire template`, `blazor admin`, `aspnet core identity`, `mudblazor dashboard`, `postgresql aspire`, `minimal api`, `smtp4dev`, `ef core migrations`, `redis output cache`.")
+    $content = Remove-MarkdownSection $content "Create From The Template"
+    $content = Remove-MarkdownSection $content "Current Template Roadmap"
+    $generatedQuickStart = @"
+Run the full stack from the solution directory:
+
+``````powershell
+aspire start --apphost Starter.AppHost/Starter.AppHost.csproj
+``````
+"@
+    $content = [regex]::Replace(
+        $content,
+        '(?ms)^Clone and run the full stack:\r?\n\r?\n```powershell\r?\ngit clone https://github\.com/vwzhang/Starter\.git\r?\ncd Starter\r?\naspire start --apphost Starter\.AppHost/Starter\.AppHost\.csproj\r?\n```',
+        $generatedQuickStart)
     $versionLine = "Template version: ``$TemplateVersion``. The same value is available in ``Starter.Shared.TemplateInfo.Version``."
     $versionPattern = 'Template version: `[^`]+`\. The same value is available in `Starter\.Shared\.TemplateInfo\.Version`\.'
 
@@ -88,7 +113,7 @@ Update-TextFile (Join-Path $templateRoot "README.md") {
         return [regex]::Replace($content, $versionPattern, $versionLine)
     }
 
-    $generatedParagraph = "This repository was generated from an enhanced Aspire application template. It includes the pieces most teams add immediately: identity, roles, admin pages, PostgreSQL, Redis, migrations, local email capture, typed DTOs, a Minimal API, a Blazor frontend, and an integration test that starts the distributed app."
+    $generatedParagraph = "This application was generated from an enhanced Aspire template. It includes the foundation most teams add early: identity, roles, admin pages, runtime settings, PostgreSQL, Redis, migrations, local email capture, typed DTOs, a Minimal API, a Blazor frontend, and an integration test that starts the distributed app."
     $content.Replace($generatedParagraph, "$generatedParagraph`r`n`r`n$versionLine")
 }
 
