@@ -31,13 +31,13 @@ dotnet pack
 Current local package:
 
 ```text
-bin\Release\Vwzhang.AspireAdminStarter.Templates.0.1.26.nupkg
+bin\Release\Vwzhang.AspireAdminStarter.Templates.0.1.27.nupkg
 ```
 
 ## Install Locally
 
 ```powershell
-dotnet new install .\bin\Release\Vwzhang.AspireAdminStarter.Templates.0.1.26.nupkg
+dotnet new install .\bin\Release\Vwzhang.AspireAdminStarter.Templates.0.1.27.nupkg
 ```
 
 Confirm the template is visible:
@@ -137,7 +137,7 @@ Pass `/p:VisualStudioVsixVersion=0.1.25` to build a one-off VSIX version.
 Output:
 
 ```text
-artifacts\vsix\EnhancedAspireStarter.VisualStudio.0.1.26.vsix
+artifacts\vsix\EnhancedAspireStarter.VisualStudio.0.1.27.vsix
 ```
 
 Install it, restart Visual Studio, then search for `Aspire Admin Starter` in the New Project dialog. After you click Create, the template displays an options page for database provider, database name, pgAdmin, smtp4dev, and seed data.
@@ -158,7 +158,7 @@ Install the latest VSIX again after the cleanup.
 After changing the source starter app, run:
 
 ```powershell
-.\scripts\Update-Template.ps1 -SourceRepository C:\Aspire\Starter -TemplateVersion 0.1.26
+.\scripts\Update-Template.ps1 -SourceRepository C:\Aspire\Starter -TemplateVersion 0.1.27
 ```
 
 The helper:
@@ -175,7 +175,7 @@ The helper:
 Recommended checks before publishing a new template version:
 
 ```powershell
-dotnet new install .\bin\Release\Vwzhang.AspireAdminStarter.Templates.0.1.26.nupkg --force
+dotnet new install .\bin\Release\Vwzhang.AspireAdminStarter.Templates.0.1.27.nupkg --force
 mkdir C:\Temp\SmokeApp
 cd C:\Temp\SmokeApp
 dotnet new aspire-admin-starter -n SmokeApp --no-restore --force

@@ -1,6 +1,6 @@
 param(
     [string] $SourceRepository = (Join-Path $PSScriptRoot "..\..\Starter"),
-    [string] $TemplateVersion = "0.1.26",
+    [string] $TemplateVersion = "0.1.27",
     [string] $Configuration = "Release",
     [switch] $SkipSync
 )

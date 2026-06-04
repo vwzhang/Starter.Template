@@ -1,7 +1,7 @@
 param(
     [string] $TemplateSource = (Join-Path $PSScriptRoot "..\templates\enhanced-aspire-starter"),
     [string] $OutputDirectory = (Join-Path $PSScriptRoot "..\artifacts\vsix"),
-    [string] $Version = "0.1.26",
+    [string] $Version = "0.1.27",
     [string] $Publisher = "vwzhang"
 )
 
@@ -223,6 +223,8 @@ namespace EnhancedAspireStarter.VisualStudio
         private string requestedProjectName;
         private string solutionDirectory;
         private WizardOptions options;
+        private bool shouldEnsureAppHost;
+        private string templateProjectName;
 
         public void RunStarted(
             object automationObject,
@@ -238,6 +240,9 @@ namespace EnhancedAspireStarter.VisualStudio
             requestedProjectName = projectName;
             destinationDirectory = GetReplacement(replacementsDictionary, "$destinationdirectory$", string.Empty);
             solutionDirectory = GetReplacement(replacementsDictionary, "$solutiondirectory$", string.Empty);
+            templateProjectName = GetReplacement(replacementsDictionary, "$aspireadmin_projecttemplate$", string.Empty);
+            shouldEnsureAppHost = templateProjectName.Equals("Root", StringComparison.OrdinalIgnoreCase)
+                || templateProjectName.Equals("Starter.Tests", StringComparison.OrdinalIgnoreCase);
             var defaultDatabaseName = ToResourceName(projectName) + "db";
             Application.EnableVisualStyles();
             var owner = OwnerWindow.FromAutomationObject(automationObject);
@@ -307,15 +312,23 @@ namespace EnhancedAspireStarter.VisualStudio
         public void RunFinished()
         {
             CaptureSolutionProjectDirectories();
-            SetAppHostStartupProject();
 
             var root = GetGeneratedRoot();
             if (string.IsNullOrWhiteSpace(root) || !Directory.Exists(root))
             {
+                SetAppHostStartupProject();
                 return;
             }
 
             CleanGeneratedRoot(root);
+
+            if (shouldEnsureAppHost)
+            {
+                var appHostProjectFile = EnsureAppHostProject(root);
+                AddAppHostProjectToSolution(appHostProjectFile);
+                EnsureSlnxContainsAppHostProject(root, appHostProjectFile);
+            }
+
             SetAppHostStartupProject();
         }
 
@@ -500,21 +513,27 @@ namespace EnhancedAspireStarter.VisualStudio
                 && Directory.GetParent(candidate) != null)
             {
                 var parent = Directory.GetParent(candidate).FullName;
-                if (HasAppHostProject(parent))
+                if (HasGeneratedProject(parent))
                 {
                     return parent;
                 }
             }
 
-            if (HasAppHostProject(candidate))
+            if (HasGeneratedProject(candidate))
             {
                 return candidate;
             }
 
             if (!string.IsNullOrWhiteSpace(requestedProjectName))
             {
+                var nestedRoot = Path.Combine(candidate, requestedProjectName);
+                if (Directory.Exists(nestedRoot) && HasGeneratedProject(nestedRoot))
+                {
+                    return nestedRoot;
+                }
+
                 var nestedProjectRoot = Path.Combine(candidate, requestedProjectName + ".AppHost");
-                if (Directory.Exists(nestedProjectRoot) && HasAppHostProject(candidate))
+                if (Directory.Exists(nestedProjectRoot) && HasGeneratedProject(candidate))
                 {
                     return candidate;
                 }
@@ -523,14 +542,501 @@ namespace EnhancedAspireStarter.VisualStudio
             return string.Empty;
         }
 
-        private static bool HasAppHostProject(string root)
+        private bool HasGeneratedProject(string root)
         {
             if (string.IsNullOrWhiteSpace(root) || !Directory.Exists(root))
             {
                 return false;
             }
 
-            return Directory.GetFiles(root, "*.AppHost.csproj", SearchOption.AllDirectories).Any();
+            return Directory.GetFiles(root, "*.csproj", SearchOption.AllDirectories)
+                .Any(file => IsGeneratedProjectFile(file));
+        }
+
+        private bool IsGeneratedProjectFile(string projectFile)
+        {
+            var fileName = Path.GetFileNameWithoutExtension(projectFile);
+
+            if (string.IsNullOrWhiteSpace(requestedProjectName))
+            {
+                return fileName.StartsWith("Starter.", StringComparison.OrdinalIgnoreCase);
+            }
+
+            return fileName.StartsWith(requestedProjectName + ".", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private string EnsureAppHostProject(string root)
+        {
+            if (options == null || string.IsNullOrWhiteSpace(root) || string.IsNullOrWhiteSpace(requestedProjectName))
+            {
+                return string.Empty;
+            }
+
+            var appHostDirectory = Path.Combine(root, requestedProjectName + ".AppHost");
+            Directory.CreateDirectory(appHostDirectory);
+            Directory.CreateDirectory(Path.Combine(appHostDirectory, "Properties"));
+
+            var projectFile = Path.Combine(appHostDirectory, requestedProjectName + ".AppHost.csproj");
+            WriteUtf8NoBom(projectFile, BuildAppHostProjectFile());
+            WriteUtf8NoBom(Path.Combine(appHostDirectory, "AppHost.cs"), BuildAppHostCode());
+            WriteUtf8NoBom(Path.Combine(appHostDirectory, "appsettings.json"), BuildAppSettings());
+            WriteUtf8NoBom(Path.Combine(appHostDirectory, "appsettings.Development.json"), BuildDevelopmentAppSettings());
+            WriteUtf8NoBom(Path.Combine(appHostDirectory, "Properties", "launchSettings.json"), BuildLaunchSettings());
+
+            if (!projectDirectories.Contains(appHostDirectory, StringComparer.OrdinalIgnoreCase))
+            {
+                projectDirectories.Add(appHostDirectory);
+            }
+
+            return projectFile;
+        }
+
+        private void AddAppHostProjectToSolution(string projectFile)
+        {
+            if (dte == null || dte.Solution == null || string.IsNullOrWhiteSpace(projectFile) || !File.Exists(projectFile))
+            {
+                return;
+            }
+
+            var normalizedProjectFile = Path.GetFullPath(projectFile);
+
+            foreach (var project in GetSolutionProjects())
+            {
+                if (project == null || string.IsNullOrWhiteSpace(project.FullName))
+                {
+                    continue;
+                }
+
+                try
+                {
+                    if (string.Equals(Path.GetFullPath(project.FullName), normalizedProjectFile, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return;
+                    }
+                }
+                catch
+                {
+                }
+            }
+
+            try
+            {
+                dte.Solution.AddFromFile(projectFile, false);
+            }
+            catch
+            {
+            }
+        }
+
+        private void EnsureSlnxContainsAppHostProject(string root, string projectFile)
+        {
+            if (string.IsNullOrWhiteSpace(projectFile) || !File.Exists(projectFile))
+            {
+                return;
+            }
+
+            var solutionFile = GetSolutionFile(root);
+            if (string.IsNullOrWhiteSpace(solutionFile)
+                || !File.Exists(solutionFile)
+                || !solutionFile.EndsWith(".slnx", StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            var content = File.ReadAllText(solutionFile);
+            if (content.IndexOf(".AppHost.csproj", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return;
+            }
+
+            var solutionDirectory = Path.GetDirectoryName(solutionFile);
+            if (string.IsNullOrWhiteSpace(solutionDirectory))
+            {
+                return;
+            }
+
+            var relativeProjectFile = GetRelativePath(solutionDirectory, projectFile).Replace('\\', '/');
+            var projectLine = "  <Project Path=\"" + relativeProjectFile + "\" />" + Environment.NewLine;
+            var closingTag = "</Solution>";
+            var closingTagIndex = content.LastIndexOf(closingTag, StringComparison.OrdinalIgnoreCase);
+
+            if (closingTagIndex >= 0)
+            {
+                content = content.Insert(closingTagIndex, projectLine);
+            }
+            else
+            {
+                content = content.TrimEnd() + Environment.NewLine + projectLine;
+            }
+
+            WriteUtf8NoBom(solutionFile, content);
+        }
+
+        private string GetSolutionFile(string root)
+        {
+            if (dte != null && dte.Solution != null && !string.IsNullOrWhiteSpace(dte.Solution.FullName))
+            {
+                return dte.Solution.FullName;
+            }
+
+            foreach (var directory in GetSolutionFileCandidateDirectories(root))
+            {
+                if (string.IsNullOrWhiteSpace(directory) || !Directory.Exists(directory))
+                {
+                    continue;
+                }
+
+                var solutionFile = Directory.GetFiles(directory, "*.slnx", SearchOption.TopDirectoryOnly).FirstOrDefault();
+                if (!string.IsNullOrWhiteSpace(solutionFile))
+                {
+                    return solutionFile;
+                }
+            }
+
+            return string.Empty;
+        }
+
+        private IEnumerable<string> GetSolutionFileCandidateDirectories(string root)
+        {
+            if (!string.IsNullOrWhiteSpace(root))
+            {
+                yield return root;
+
+                var parent = Directory.GetParent(root);
+                if (parent != null)
+                {
+                    yield return parent.FullName;
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(solutionDirectory))
+            {
+                yield return solutionDirectory;
+            }
+
+            if (!string.IsNullOrWhiteSpace(destinationDirectory))
+            {
+                yield return destinationDirectory;
+            }
+        }
+
+        private string BuildAppHostProjectFile()
+        {
+            var builder = new StringBuilder();
+
+            builder.AppendLine("<Project Sdk=\"Aspire.AppHost.Sdk/13.4.0\">");
+            builder.AppendLine();
+            builder.AppendLine("  <PropertyGroup>");
+            builder.AppendLine("    <OutputType>Exe</OutputType>");
+            builder.AppendLine("    <TargetFramework>net10.0</TargetFramework>");
+            builder.AppendLine("    <ImplicitUsings>enable</ImplicitUsings>");
+            builder.AppendLine("    <Nullable>enable</Nullable>");
+            builder.Append("    <UserSecretsId>").Append(Guid.NewGuid().ToString("D")).AppendLine("</UserSecretsId>");
+            builder.AppendLine("  </PropertyGroup>");
+            builder.AppendLine();
+            builder.AppendLine("  <ItemGroup>");
+            builder.Append("    <ProjectReference Include=\"..\\").Append(requestedProjectName).Append(".ApiService\\").Append(requestedProjectName).AppendLine(".ApiService.csproj\" />");
+            builder.Append("    <ProjectReference Include=\"..\\").Append(requestedProjectName).Append(".MigrationService\\").Append(requestedProjectName).AppendLine(".MigrationService.csproj\" />");
+            builder.Append("    <ProjectReference Include=\"..\\").Append(requestedProjectName).Append(".Web\\").Append(requestedProjectName).AppendLine(".Web.csproj\" />");
+            builder.AppendLine("  </ItemGroup>");
+            builder.AppendLine();
+            builder.AppendLine("  <ItemGroup>");
+            builder.AppendLine("    <PackageReference Include=\"Aspire.Hosting.Redis\" Version=\"13.4.0\" />");
+            builder.Append("    ").AppendLine(options.AppHostDatabasePackageReference);
+            builder.AppendLine("  </ItemGroup>");
+            builder.AppendLine();
+            builder.AppendLine("</Project>");
+
+            return builder.ToString();
+        }
+
+        private string BuildAppHostCode()
+        {
+            var projectIdentifier = ToCSharpIdentifier(requestedProjectName);
+            var databaseVariableName = ToCSharpVariableName(requestedProjectName, "Db");
+            var databaseName = string.IsNullOrWhiteSpace(options.DatabaseName)
+                ? ToResourceName(requestedProjectName) + "db"
+                : options.DatabaseName;
+            var emailConfigurationPrefix = EscapeCSharpString(requestedProjectName);
+            var seedCatalogValue = options.SeedSampleData ? "true" : "false";
+            var seedUsersValue = options.SeedUsers ? "true" : "false";
+            var code = new StringBuilder();
+
+            code.AppendLine("using Aspire.Hosting.ApplicationModel;");
+            code.AppendLine();
+            code.AppendLine("var builder = DistributedApplication.CreateBuilder(args);");
+            code.AppendLine();
+            code.Append("const string SeedCatalogSampleDataValue = \"").Append(seedCatalogValue).AppendLine("\";");
+            code.Append("const string SeedDevelopmentTestUsersValue = \"").Append(seedUsersValue).AppendLine("\";");
+            code.AppendLine();
+            code.AppendLine("var cache = builder.AddRedis(\"cache\");");
+            code.AppendLine();
+
+            if (options.IncludeSmtp4dev)
+            {
+                code.AppendLine("var smtp4dev = builder.AddContainer(\"smtp4dev\", \"rnwood/smtp4dev\")");
+                code.AppendLine("    .WithHttpEndpoint(targetPort: 80, port: 5080)");
+                code.AppendLine("    .WithEndpoint(targetPort: 25, scheme: \"tcp\", name: \"smtp\")");
+                code.AppendLine("    .WithHttpHealthCheck(\"/\");");
+                code.AppendLine();
+                code.AppendLine("var smtpEndpoint = smtp4dev.GetEndpoint(\"smtp\");");
+                code.AppendLine();
+            }
+
+            if (options.UsePostgreSql)
+            {
+                if (options.IncludePgAdminForPostgreSql)
+                {
+                    code.AppendLine("const string PgAdminImageTag = \"9.14.0\";");
+                    code.AppendLine("const string PgAdminDefaultEmail = \"admin@domain.com\";");
+                    code.AppendLine("const string PgAdminDefaultPassword = \"Happy1..\";");
+                    code.AppendLine();
+                }
+
+                code.AppendLine("// PostgreSQL 18 server with a persistent data volume.");
+                code.AppendLine("var postgres = builder.AddPostgres(\"postgres\")");
+                code.AppendLine("    .WithImageTag(\"18\")");
+                code.AppendLine("    .WithDataVolume();");
+                code.AppendLine();
+
+                if (options.IncludePgAdminForPostgreSql)
+                {
+                    code.AppendLine("postgres.WithPgAdmin(pgAdmin =>");
+                    code.AppendLine("{");
+                    code.AppendLine("    pgAdmin");
+                    code.AppendLine("        .WithImageTag(PgAdminImageTag)");
+                    code.AppendLine("        .WithEnvironment(\"PGADMIN_DEFAULT_EMAIL\", PgAdminDefaultEmail)");
+                    code.AppendLine("        .WithEnvironment(\"PGADMIN_DEFAULT_PASSWORD\", PgAdminDefaultPassword)");
+                    code.AppendLine("        .WithEnvironment(\"PGADMIN_CONFIG_SERVER_MODE\", \"False\")");
+                    code.AppendLine("        .WithEnvironment(\"PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED\", \"False\")");
+                    code.AppendLine("        // Bind directly because pgAdmin's gunicorn responses can trip the Aspire proxy health check.");
+                    code.AppendLine("        .WithHttpEndpoint(targetPort: 80, port: 5050, name: \"http\", isProxied: false)");
+                    code.AppendLine("        .WaitFor(postgres);");
+                    code.AppendLine();
+                    code.AppendLine("    foreach (var healthCheck in pgAdmin.Resource.Annotations.OfType<HealthCheckAnnotation>().ToArray())");
+                    code.AppendLine("    {");
+                    code.AppendLine("        pgAdmin.Resource.Annotations.Remove(healthCheck);");
+                    code.AppendLine("    }");
+                    code.AppendLine("}, \"pgadmin\");");
+                    code.AppendLine();
+                }
+
+                code.AppendLine("// Shared database consumed by the API service and web frontend.");
+                code.Append("var ").Append(databaseVariableName).Append(" = postgres.AddDatabase(\"").Append(EscapeCSharpString(databaseName)).AppendLine("\");");
+                code.AppendLine();
+            }
+            else
+            {
+                code.AppendLine("// SQL Server container with a persistent data volume.");
+                code.AppendLine("var sqlServer = builder.AddSqlServer(\"sqlserver\")");
+                code.AppendLine("    .WithDataVolume();");
+                code.AppendLine();
+                code.AppendLine("// Shared database consumed by the API service and web frontend.");
+                code.Append("var ").Append(databaseVariableName).Append(" = sqlServer.AddDatabase(\"").Append(EscapeCSharpString(databaseName)).AppendLine("\");");
+                code.AppendLine();
+            }
+
+            code.Append("var migrations = builder.AddProject<Projects.").Append(projectIdentifier).AppendLine("_MigrationService>(\"migrations\")");
+            code.Append("    .WithReference(").Append(databaseVariableName).AppendLine(")");
+            code.AppendLine("    .WithEnvironment(\"Catalog__Seed__SampleData\", SeedCatalogSampleDataValue)");
+            code.AppendLine("    .WithEnvironment(\"Identity__Seed__SeedDevelopmentTestUsers\", SeedDevelopmentTestUsersValue)");
+
+            if (options.IncludeSmtp4dev)
+            {
+                code.Append("    .WithEnvironment(\"").Append(emailConfigurationPrefix).AppendLine("__Email__SmtpHost\", ReferenceExpression.Create($\"{smtpEndpoint.Property(EndpointProperty.Host)}\"))");
+                code.Append("    .WithEnvironment(\"").Append(emailConfigurationPrefix).AppendLine("__Email__SmtpPort\", ReferenceExpression.Create($\"{smtpEndpoint.Property(EndpointProperty.Port)}\"))");
+            }
+
+            code.Append("    .WaitFor(").Append(databaseVariableName).AppendLine(");");
+            code.AppendLine();
+            code.Append("var apiService = builder.AddProject<Projects.").Append(projectIdentifier).AppendLine("_ApiService>(\"apiservice\")");
+            code.AppendLine("    .WithHttpHealthCheck(\"/health\")");
+            code.Append("    .WithReference(").Append(databaseVariableName).AppendLine(")");
+            code.Append("    .WaitFor(").Append(databaseVariableName).AppendLine(")");
+            code.AppendLine("    .WaitForCompletion(migrations);");
+            code.AppendLine();
+            code.Append("builder.AddProject<Projects.").Append(projectIdentifier).AppendLine("_Web>(\"webfrontend\")");
+            code.AppendLine("    .WithExternalHttpEndpoints()");
+            code.AppendLine("    .WithHttpHealthCheck(\"/health\")");
+            code.AppendLine("    .WithReference(cache)");
+            code.AppendLine("    .WaitFor(cache)");
+            code.AppendLine("    .WithEnvironment(\"Identity__Seed__SeedDevelopmentTestUsers\", SeedDevelopmentTestUsersValue)");
+
+            if (options.IncludeSmtp4dev)
+            {
+                code.Append("    .WithEnvironment(\"").Append(emailConfigurationPrefix).AppendLine("__Email__SmtpHost\", ReferenceExpression.Create($\"{smtpEndpoint.Property(EndpointProperty.Host)}\"))");
+                code.Append("    .WithEnvironment(\"").Append(emailConfigurationPrefix).AppendLine("__Email__SmtpPort\", ReferenceExpression.Create($\"{smtpEndpoint.Property(EndpointProperty.Port)}\"))");
+                code.AppendLine("    .WaitFor(smtp4dev)");
+            }
+
+            code.AppendLine("    .WithReference(apiService)");
+            code.AppendLine("    .WaitFor(apiService)");
+            code.Append("    .WithReference(").Append(databaseVariableName).AppendLine(")");
+            code.Append("    .WaitFor(").Append(databaseVariableName).AppendLine(")");
+            code.AppendLine("    .WaitForCompletion(migrations);");
+            code.AppendLine();
+            code.AppendLine("builder.Build().Run();");
+
+            return code.ToString();
+        }
+
+        private static string BuildAppSettings()
+        {
+            var builder = new StringBuilder();
+
+            builder.AppendLine("{");
+            builder.AppendLine("  \"Logging\": {");
+            builder.AppendLine("    \"LogLevel\": {");
+            builder.AppendLine("      \"Default\": \"Information\",");
+            builder.AppendLine("      \"Microsoft.AspNetCore\": \"Warning\",");
+            builder.AppendLine("      \"Aspire.Hosting.Dcp\": \"Warning\"");
+            builder.AppendLine("    }");
+            builder.AppendLine("  }");
+            builder.AppendLine("}");
+
+            return builder.ToString();
+        }
+
+        private static string BuildDevelopmentAppSettings()
+        {
+            var builder = new StringBuilder();
+
+            builder.AppendLine("{");
+            builder.AppendLine("  \"Logging\": {");
+            builder.AppendLine("    \"LogLevel\": {");
+            builder.AppendLine("      \"Default\": \"Information\",");
+            builder.AppendLine("      \"Microsoft.AspNetCore\": \"Warning\"");
+            builder.AppendLine("    }");
+            builder.AppendLine("  }");
+            builder.AppendLine("}");
+
+            return builder.ToString();
+        }
+
+        private static string BuildLaunchSettings()
+        {
+            var builder = new StringBuilder();
+
+            builder.AppendLine("{");
+            builder.AppendLine("  \"$schema\": \"https://json.schemastore.org/launchsettings.json\",");
+            builder.AppendLine("  \"profiles\": {");
+            builder.AppendLine("    \"https\": {");
+            builder.AppendLine("      \"commandName\": \"Project\",");
+            builder.AppendLine("      \"dotnetRunMessages\": true,");
+            builder.AppendLine("      \"launchBrowser\": true,");
+            builder.AppendLine("      \"applicationUrl\": \"https://localhost:17083;http://localhost:15252\",");
+            builder.AppendLine("      \"environmentVariables\": {");
+            builder.AppendLine("        \"ASPNETCORE_ENVIRONMENT\": \"Development\",");
+            builder.AppendLine("        \"DOTNET_ENVIRONMENT\": \"Development\",");
+            builder.AppendLine("        \"ASPIRE_DASHBOARD_OTLP_ENDPOINT_URL\": \"https://localhost:21177\",");
+            builder.AppendLine("        \"ASPIRE_DASHBOARD_MCP_ENDPOINT_URL\": \"https://localhost:23235\",");
+            builder.AppendLine("        \"ASPIRE_RESOURCE_SERVICE_ENDPOINT_URL\": \"https://localhost:22068\"");
+            builder.AppendLine("      }");
+            builder.AppendLine("    },");
+            builder.AppendLine("    \"http\": {");
+            builder.AppendLine("      \"commandName\": \"Project\",");
+            builder.AppendLine("      \"dotnetRunMessages\": true,");
+            builder.AppendLine("      \"launchBrowser\": true,");
+            builder.AppendLine("      \"applicationUrl\": \"http://localhost:15252\",");
+            builder.AppendLine("      \"environmentVariables\": {");
+            builder.AppendLine("        \"ASPNETCORE_ENVIRONMENT\": \"Development\",");
+            builder.AppendLine("        \"DOTNET_ENVIRONMENT\": \"Development\",");
+            builder.AppendLine("        \"ASPIRE_DASHBOARD_OTLP_ENDPOINT_URL\": \"http://localhost:19167\",");
+            builder.AppendLine("        \"ASPIRE_DASHBOARD_MCP_ENDPOINT_URL\": \"http://localhost:18060\",");
+            builder.AppendLine("        \"ASPIRE_RESOURCE_SERVICE_ENDPOINT_URL\": \"http://localhost:20132\"");
+            builder.AppendLine("      }");
+            builder.AppendLine("    }");
+            builder.AppendLine("  }");
+            builder.AppendLine("}");
+
+            return builder.ToString();
+        }
+
+        private static string GetRelativePath(string basePath, string path)
+        {
+            if (string.IsNullOrWhiteSpace(basePath) || string.IsNullOrWhiteSpace(path))
+            {
+                return path;
+            }
+
+            try
+            {
+                var baseUri = new Uri(EnsureTrailingDirectorySeparator(Path.GetFullPath(basePath)));
+                var pathUri = new Uri(Path.GetFullPath(path));
+
+                if (!string.Equals(baseUri.Scheme, pathUri.Scheme, StringComparison.OrdinalIgnoreCase))
+                {
+                    return path;
+                }
+
+                return Uri.UnescapeDataString(baseUri.MakeRelativeUri(pathUri).ToString())
+                    .Replace('/', Path.DirectorySeparatorChar);
+            }
+            catch
+            {
+                return path;
+            }
+        }
+
+        private static string EnsureTrailingDirectorySeparator(string path)
+        {
+            if (string.IsNullOrWhiteSpace(path)
+                || path.EndsWith(Path.DirectorySeparatorChar.ToString(), StringComparison.Ordinal)
+                || path.EndsWith(Path.AltDirectorySeparatorChar.ToString(), StringComparison.Ordinal))
+            {
+                return path;
+            }
+
+            return path + Path.DirectorySeparatorChar;
+        }
+
+        private static string EscapeCSharpString(string value)
+        {
+            return (value ?? string.Empty).Replace("\\", "\\\\").Replace("\"", "\\\"");
+        }
+
+        private static string ToCSharpIdentifier(string value)
+        {
+            var builder = new StringBuilder();
+
+            foreach (var character in value ?? string.Empty)
+            {
+                builder.Append(char.IsLetterOrDigit(character) || character == '_' ? character : '_');
+            }
+
+            if (builder.Length == 0)
+            {
+                builder.Append("Starter");
+            }
+
+            if (!char.IsLetter(builder[0]) && builder[0] != '_')
+            {
+                builder.Insert(0, '_');
+            }
+
+            return builder.ToString();
+        }
+
+        private static string ToCSharpVariableName(string value, string suffix)
+        {
+            var baseName = ToResourceName(value);
+
+            if (string.IsNullOrWhiteSpace(baseName))
+            {
+                baseName = "app";
+            }
+
+            if (char.IsDigit(baseName[0]))
+            {
+                baseName = "app" + baseName;
+            }
+
+            return baseName + suffix;
+        }
+
+        private static void WriteUtf8NoBom(string path, string content)
+        {
+            File.WriteAllText(path, content, new UTF8Encoding(false));
         }
 
         private void DeleteInactiveMigrationDirectories(string root)
@@ -1614,6 +2120,13 @@ function New-ProjectTemplateFile(
         $writer.WriteEndElement()
         $writer.WriteEndElement()
 
+        $writer.WriteStartElement("CustomParameters")
+        $writer.WriteStartElement("CustomParameter")
+        $writer.WriteAttributeString("Name", '$aspireadmin_projecttemplate$')
+        $writer.WriteAttributeString("Value", $ProjectName)
+        $writer.WriteEndElement()
+        $writer.WriteEndElement()
+
         $writer.WriteStartElement("WizardExtension")
         $writer.WriteElementString("Assembly", "EnhancedAspireStarter.Wizard")
         $writer.WriteElementString("FullClassName", "EnhancedAspireStarter.VisualStudio.EnhancedAspireStarterWizard")
@@ -1659,10 +2172,12 @@ function Write-RootTemplate([string] $Path) {
       <ProjectTemplateLink ProjectName="$safeprojectname$.ApiService" CopyParameters="true">Starter.ApiService\Starter.ApiService.vstemplate</ProjectTemplateLink>
       <ProjectTemplateLink ProjectName="$safeprojectname$.Web" CopyParameters="true">Starter.Web\Starter.Web.vstemplate</ProjectTemplateLink>
       <ProjectTemplateLink ProjectName="$safeprojectname$.MigrationService" CopyParameters="true">Starter.MigrationService\Starter.MigrationService.vstemplate</ProjectTemplateLink>
-      <ProjectTemplateLink ProjectName="$safeprojectname$.AppHost" CopyParameters="true">Starter.AppHost\Starter.AppHost.vstemplate</ProjectTemplateLink>
       <ProjectTemplateLink ProjectName="$safeprojectname$.Tests" CopyParameters="true">Starter.Tests\Starter.Tests.vstemplate</ProjectTemplateLink>
     </ProjectCollection>
   </TemplateContent>
+  <CustomParameters>
+    <CustomParameter Name="$aspireadmin_projecttemplate$" Value="Root" />
+  </CustomParameters>
   <WizardExtension>
     <Assembly>EnhancedAspireStarter.Wizard</Assembly>
     <FullClassName>EnhancedAspireStarter.VisualStudio.EnhancedAspireStarterWizard</FullClassName>
