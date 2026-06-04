@@ -31,13 +31,13 @@ dotnet pack
 Current local package:
 
 ```text
-bin\Release\Vwzhang.EnhancedAspireStarter.Templates.0.1.19.nupkg
+bin\Release\Vwzhang.EnhancedAspireStarter.Templates.0.1.20.nupkg
 ```
 
 ## Install Locally
 
 ```powershell
-dotnet new install .\bin\Release\Vwzhang.EnhancedAspireStarter.Templates.0.1.19.nupkg
+dotnet new install .\bin\Release\Vwzhang.EnhancedAspireStarter.Templates.0.1.20.nupkg
 ```
 
 Confirm the template is visible:
@@ -125,19 +125,27 @@ Build the VSIX:
 Output:
 
 ```text
-artifacts\vsix\EnhancedAspireStarter.VisualStudio.0.1.19.vsix
+artifacts\vsix\EnhancedAspireStarter.VisualStudio.0.1.20.vsix
 ```
 
 Install it, restart Visual Studio, then search for `Enhanced Aspire Starter` in the New Project dialog. After you click Create, the template displays an options page for database provider, database name, pgAdmin, smtp4dev, and seed data.
 
 Selecting SQL Server disables pgAdmin because pgAdmin only applies to PostgreSQL. SQL Server apps run a SQL Server container and can be inspected from SSMS or Azure Data Studio on the host.
 
+If Visual Studio still shows the old `Aspire Admin Starter` name after installing a newer VSIX, close Visual Studio and run:
+
+```powershell
+.\visualstudio\Clear-VisualStudioTemplateCache.ps1
+```
+
+Install the latest VSIX again after the cleanup.
+
 ## Maintainer Workflow
 
 After changing the source starter app, run:
 
 ```powershell
-.\scripts\Update-Template.ps1 -SourceRepository C:\Aspire\Starter -TemplateVersion 0.1.19
+.\scripts\Update-Template.ps1 -SourceRepository C:\Aspire\Starter -TemplateVersion 0.1.20
 ```
 
 The helper:
@@ -154,7 +162,7 @@ The helper:
 Recommended checks before publishing a new template version:
 
 ```powershell
-dotnet new install .\bin\Release\Vwzhang.EnhancedAspireStarter.Templates.0.1.19.nupkg --force
+dotnet new install .\bin\Release\Vwzhang.EnhancedAspireStarter.Templates.0.1.20.nupkg --force
 mkdir C:\Temp\SmokeApp
 cd C:\Temp\SmokeApp
 dotnet new enhanced-aspire-starter -n SmokeApp --force

@@ -1,6 +1,6 @@
 param(
     [string] $SourceRepository = (Join-Path $PSScriptRoot "..\..\Starter"),
-    [string] $TemplateVersion = "0.1.19",
+    [string] $TemplateVersion = "0.1.20",
     [string] $Configuration = "Release",
     [switch] $SkipSync
 )
@@ -56,6 +56,16 @@ Set-TextFile $templateInfoPath ($templateInfo + "`n")
 Update-TextFile (Join-Path $repoRoot "EnhancedAspireStarter.Templates.csproj") {
     param($content)
     $content -replace '<PackageVersion>[^<]+</PackageVersion>', "<PackageVersion>$TemplateVersion</PackageVersion>"
+}
+
+Update-TextFile (Join-Path $repoRoot "scripts\Sync-TemplateSource.ps1") {
+    param($content)
+    $content -replace '\[string\] \$TemplateVersion = "[^"]+"', "[string] `$TemplateVersion = ""$TemplateVersion"""
+}
+
+Update-TextFile (Join-Path $repoRoot "scripts\Update-Template.ps1") {
+    param($content)
+    $content -replace '\[string\] \$TemplateVersion = "[^"]+"', "[string] `$TemplateVersion = ""$TemplateVersion"""
 }
 
 Update-TextFile (Join-Path $repoRoot "visualstudio\Build-Vsix.ps1") {
