@@ -1,7 +1,7 @@
 param(
     [string] $TemplateSource = (Join-Path $PSScriptRoot "..\templates\enhanced-aspire-starter"),
     [string] $OutputDirectory = (Join-Path $PSScriptRoot "..\artifacts\vsix"),
-    [string] $Version = "0.1.36",
+    [string] $Version = "0.1.37",
     [string] $Publisher = "vwzhang"
 )
 
@@ -275,7 +275,7 @@ namespace EnhancedAspireStarter.VisualStudio
             }
 
             options = configuredOptions
-                ?? TryReadCopiedOptions(replacementsDictionary)
+                ?? TryReadCopiedOptions(replacementsDictionary, defaultDatabaseName)
                 ?? TryReadEnvironmentOptions(defaultDatabaseName);
 
             if (options == null)
@@ -1395,7 +1395,7 @@ namespace EnhancedAspireStarter.VisualStudio
         {
             var builder = new StringBuilder();
 
-            builder.AppendLine("<Project Sdk=\"Aspire.AppHost.Sdk/13.4.0\">");
+            builder.AppendLine("<Project Sdk=\"Aspire.AppHost.Sdk/13.4.2\">");
             builder.AppendLine();
             builder.AppendLine("  <PropertyGroup>");
             builder.AppendLine("    <OutputType>Exe</OutputType>");
@@ -1412,7 +1412,7 @@ namespace EnhancedAspireStarter.VisualStudio
             builder.AppendLine("  </ItemGroup>");
             builder.AppendLine();
             builder.AppendLine("  <ItemGroup>");
-            builder.AppendLine("    <PackageReference Include=\"Aspire.Hosting.Redis\" Version=\"13.4.0\" />");
+            builder.AppendLine("    <PackageReference Include=\"Aspire.Hosting.Redis\" Version=\"13.4.2\" />");
             builder.Append("    ").AppendLine(options.AppHostDatabasePackageReference);
             builder.AppendLine("  </ItemGroup>");
             builder.AppendLine();
@@ -1993,7 +1993,7 @@ namespace EnhancedAspireStarter.VisualStudio
             return (root ?? string.Empty) + "|" + (projectName ?? string.Empty);
         }
 
-        private static WizardOptions TryReadCopiedOptions(IDictionary<string, string> replacements)
+        private static WizardOptions TryReadCopiedOptions(IDictionary<string, string> replacements, string defaultDatabaseName)
         {
             var provider = GetReplacement(
                 replacements,
@@ -2010,11 +2010,11 @@ namespace EnhancedAspireStarter.VisualStudio
             var databaseName = GetReplacement(
                 replacements,
                 "$ext_aspireadmin_databasename$",
-                GetReplacement(replacements, "$aspireadmin_databasename$", "starterdb"));
+                GetReplacement(replacements, "$aspireadmin_databasename$", defaultDatabaseName));
 
             return WizardOptions.FromValues(
                 useSqlServer,
-                databaseName,
+                string.IsNullOrWhiteSpace(databaseName) ? defaultDatabaseName : databaseName,
                 ParseTemplateBoolean(GetReplacement(replacements, "$ext_aspireadmin_includepgadmin$", "True")),
                 ParseTemplateBoolean(GetReplacement(replacements, "$ext_aspireadmin_includepgadminforpostgresql$", useSqlServer ? "False" : "True")),
                 ParseTemplateBoolean(GetReplacement(replacements, "$ext_aspireadmin_includesmtp4dev$", "True")),
@@ -2123,8 +2123,8 @@ namespace EnhancedAspireStarter.VisualStudio
             get
             {
                 return UseSqlServer
-                    ? "<PackageReference Include=\"Aspire.Hosting.SqlServer\" Version=\"13.4.0\" />"
-                    : "<PackageReference Include=\"Aspire.Hosting.PostgreSQL\" Version=\"13.4.0\" />";
+                    ? "<PackageReference Include=\"Aspire.Hosting.SqlServer\" Version=\"13.4.2\" />"
+                    : "<PackageReference Include=\"Aspire.Hosting.PostgreSQL\" Version=\"13.4.2\" />";
             }
         }
 
@@ -2133,8 +2133,8 @@ namespace EnhancedAspireStarter.VisualStudio
             get
             {
                 return UseSqlServer
-                    ? "<PackageReference Include=\"Aspire.Microsoft.EntityFrameworkCore.SqlServer\" Version=\"13.4.0\" />"
-                    : "<PackageReference Include=\"Aspire.Npgsql.EntityFrameworkCore.PostgreSQL\" Version=\"13.4.0\" />";
+                    ? "<PackageReference Include=\"Aspire.Microsoft.EntityFrameworkCore.SqlServer\" Version=\"13.4.2\" />"
+                    : "<PackageReference Include=\"Aspire.Npgsql.EntityFrameworkCore.PostgreSQL\" Version=\"13.4.2\" />";
             }
         }
 
@@ -2389,8 +2389,8 @@ namespace EnhancedAspireStarter.VisualStudio
             get
             {
                 return UseSqlServer
-                    ? "<PackageReference Include=\"Aspire.Hosting.SqlServer\" Version=\"13.4.0\" />"
-                    : "<PackageReference Include=\"Aspire.Hosting.PostgreSQL\" Version=\"13.4.0\" />";
+                    ? "<PackageReference Include=\"Aspire.Hosting.SqlServer\" Version=\"13.4.2\" />"
+                    : "<PackageReference Include=\"Aspire.Hosting.PostgreSQL\" Version=\"13.4.2\" />";
             }
         }
 
@@ -2399,8 +2399,8 @@ namespace EnhancedAspireStarter.VisualStudio
             get
             {
                 return UseSqlServer
-                    ? "<PackageReference Include=\"Aspire.Microsoft.EntityFrameworkCore.SqlServer\" Version=\"13.4.0\" />"
-                    : "<PackageReference Include=\"Aspire.Npgsql.EntityFrameworkCore.PostgreSQL\" Version=\"13.4.0\" />";
+                    ? "<PackageReference Include=\"Aspire.Microsoft.EntityFrameworkCore.SqlServer\" Version=\"13.4.2\" />"
+                    : "<PackageReference Include=\"Aspire.Npgsql.EntityFrameworkCore.PostgreSQL\" Version=\"13.4.2\" />";
             }
         }
 
@@ -2978,6 +2978,7 @@ function Write-VsixManifest([string] $Path, [string] $Version, [string] $Publish
     <MoreInfo>https://github.com/vwzhang/Starter.Template</MoreInfo>
     <License>Resources\LICENSE.txt</License>
     <ReleaseNotes>Resources\ReleaseNotes.txt</ReleaseNotes>
+    <Icon>Resources\aspire-admin-starter-icon.png</Icon>
     <Tags>Aspire; .NET; Blazor; ASP.NET Core; Identity; PostgreSQL; SQL Server; Redis; pgAdmin; smtp4dev; Admin; Enhanced Aspire; Project Template</Tags>
   </Metadata>
   <Installation>
@@ -3034,6 +3035,7 @@ function Write-VsixProjectFile(
       <OutputSubPath>Aspire</OutputSubPath>
     </ZipProject>
     <Content Include="Resources\LICENSE.txt" IncludeInVSIX="true" VSIXSubPath="Resources" />
+    <Content Include="Resources\aspire-admin-starter-icon.png" IncludeInVSIX="true" VSIXSubPath="Resources" />
     <Content Include="Resources\ReleaseNotes.txt" IncludeInVSIX="true" VSIXSubPath="Resources" />
     <Content Include="EnhancedAspireStarter.Wizard.dll" IncludeInVSIX="true" />
   </ItemGroup>
@@ -3104,6 +3106,7 @@ foreach ($project in $projects) {
 New-ZipFromDirectoryContent $templateRoot $templateZip
 Copy-Item -LiteralPath $templateRoot -Destination $vsixProjectTemplateRoot -Recurse -Force
 Copy-Item -LiteralPath (Join-Path $templateSourcePath "LICENSE") -Destination (Join-Path $vsixProjectRoot "Resources\LICENSE.txt") -Force
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot "..\resources\aspire-admin-starter-icon.png") -Destination (Join-Path $vsixProjectRoot "Resources\aspire-admin-starter-icon.png") -Force
 Write-Utf8NoBom (Join-Path $vsixProjectRoot "Resources\ReleaseNotes.txt") "Aspire Admin Starter project template with Visual Studio options."
 Write-WizardProjectFiles $wizardProjectRoot $visualStudioSdk.TemplateWizardInterfacePath $visualStudioSdk.EnvDtePath $visualStudioSdk.VisualStudioInteropPath
 

@@ -1,7 +1,7 @@
 param(
     [string] $SourceRepository = "C:\Aspire\Starter",
     [string] $TemplateContent = "C:\Aspire\Starter.Template\templates\enhanced-aspire-starter",
-    [string] $TemplateVersion = "0.1.36"
+    [string] $TemplateVersion = "0.1.37"
 )
 
 $ErrorActionPreference = "Stop"
@@ -11,8 +11,8 @@ function Remove-MarkdownSection([string] $Content, [string] $Heading) {
     [regex]::Replace($Content, "(?ms)^## $escapedHeading\r?\n.*?(?=^## |\z)", "")
 }
 
-if (-not (Test-Path -LiteralPath (Join-Path $SourceRepository ".git"))) {
-    throw "SourceRepository must be a git repository: $SourceRepository"
+if (-not (Test-Path -LiteralPath $SourceRepository)) {
+    throw "SourceRepository does not exist: $SourceRepository"
 }
 
 if (Test-Path -LiteralPath $TemplateContent) {
@@ -24,11 +24,35 @@ else {
     New-Item -ItemType Directory -Path $TemplateContent -Force | Out-Null
 }
 
-$archive = Join-Path $env:TEMP "enhanced-aspire-starter-template-source.zip"
-Remove-Item -LiteralPath $archive -Force -ErrorAction SilentlyContinue
+$robocopyArgs = @(
+    $SourceRepository,
+    $TemplateContent,
+    "/E",
+    "/XD",
+    ".git",
+    ".vs",
+    ".agents",
+    ".codex",
+    ".claude",
+    ".playwright-cli",
+    "bin",
+    "obj",
+    "artifacts",
+    "/XF",
+    "AGENTS.md",
+    ".mcp.json",
+    "/NFL",
+    "/NDL",
+    "/NJH",
+    "/NJS",
+    "/NP"
+)
 
-git -C $SourceRepository archive --format zip --output $archive HEAD
-Expand-Archive -LiteralPath $archive -DestinationPath $TemplateContent -Force
+& robocopy @robocopyArgs | Out-Host
+
+if ($LASTEXITCODE -gt 7) {
+    throw "robocopy failed with exit code $LASTEXITCODE"
+}
 
 Remove-Item -LiteralPath (Join-Path $TemplateContent "AGENTS.md") -Force -ErrorAction SilentlyContinue
 Remove-Item -LiteralPath (Join-Path $TemplateContent ".mcp.json") -Force -ErrorAction SilentlyContinue

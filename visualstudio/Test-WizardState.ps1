@@ -108,6 +108,7 @@ New-Item -ItemType Directory -Path $ScratchRoot -Force | Out-Null
 try {
     $sql = Invoke-WizardGeneration $wizardType $runKind "HarnessSql" "SqlServer" "harnesssqldb"
     $pg = Invoke-WizardGeneration $wizardType $runKind "HarnessPg" "PostgreSql" "harnesspgdb"
+    $defaultDb = Invoke-WizardGeneration $wizardType $runKind "HarnessDefault" "PostgreSql" ""
 
     $checks = [System.Collections.Generic.List[object]]::new()
     Add-Check $checks "SQL AppHost created" $sql.AppHostExists
@@ -119,6 +120,8 @@ try {
     Add-Check $checks "PostgreSQL provider and database name" ($pg.AppHostText -match "AddPostgres" -and $pg.AppHostText -match "WithPgAdmin" -and $pg.AppHostText -match "harnesspgdb" -and $pg.AppHostText -notmatch "AddSqlServer")
     Add-Check $checks "PostgreSQL nested root removed" (-not $pg.NestedRootExists)
     Add-Check $checks "PostgreSQL solution has root AppHost" ($pg.SlnxText -match "HarnessPg\.AppHost/HarnessPg\.AppHost\.csproj")
+
+    Add-Check $checks "Default database name from project name" ($defaultDb.AppHostText -match "harnessdefaultdb" -and $defaultDb.AppHostText -notmatch "starterdb")
 
     $checks | Format-Table -AutoSize
 

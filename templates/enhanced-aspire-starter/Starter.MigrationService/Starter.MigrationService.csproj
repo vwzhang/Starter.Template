@@ -14,10 +14,10 @@
 
   <ItemGroup>
     <!--#if (usePostgreSql) -->
-    <PackageReference Include="Aspire.Npgsql.EntityFrameworkCore.PostgreSQL" Version="13.4.0" />
+    <PackageReference Include="Aspire.Npgsql.EntityFrameworkCore.PostgreSQL" Version="13.4.2" />
     <!--#endif -->
     <!--#if (useSqlServer) -->
-    <PackageReference Include="Aspire.Microsoft.EntityFrameworkCore.SqlServer" Version="13.4.0" />
+    <PackageReference Include="Aspire.Microsoft.EntityFrameworkCore.SqlServer" Version="13.4.2" />
     <!--#endif -->
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.8" />
   </ItemGroup>

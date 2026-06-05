@@ -70,18 +70,15 @@ Copy-OverlayContent $overlayRoot $templateRoot
 
 $appHostPath = Join-Path $templateRoot "Starter.AppHost\AppHost.cs"
 $appHostSearch = @'
-//#if (includePgAdmin)
 const string PgAdminImageTag = "9.14.0";
 const string PgAdminDefaultEmail = "admin@domain.com";
 const string PgAdminDefaultPassword = "Happy1..";
-//#endif
 
 // PostgreSQL 18 server with a persistent data volume.
 var postgres = builder.AddPostgres("postgres")
     .WithImageTag("18")
     .WithDataVolume();
 
-//#if (includePgAdmin)
 postgres.WithPgAdmin(pgAdmin =>
 {
     pgAdmin
@@ -99,7 +96,6 @@ postgres.WithPgAdmin(pgAdmin =>
         pgAdmin.Resource.Annotations.Remove(healthCheck);
     }
 }, "pgadmin");
-//#endif
 
 // Shared "starter" database consumed by both the API service and the web frontend.
 var starterDb = postgres.AddDatabase("starterdb");
@@ -153,40 +149,102 @@ var starterDb = sqlServer.AddDatabase("starterdb");
 Replace-Required $appHostPath $appHostSearch $appHostReplacement "useSqlServer"
 
 Replace-Required `
+    $appHostPath `
+    @'
+var smtp4dev = builder.AddContainer("smtp4dev", "rnwood/smtp4dev")
+    .WithHttpEndpoint(targetPort: 80)
+    .WithEndpoint(targetPort: 25, scheme: "tcp", name: "smtp")
+    .WithHttpHealthCheck("/");
+
+var smtpEndpoint = smtp4dev.GetEndpoint("smtp");
+'@ `
+    @'
+//#if (includeSmtp4dev)
+var smtp4dev = builder.AddContainer("smtp4dev", "rnwood/smtp4dev")
+    .WithHttpEndpoint(targetPort: 80)
+    .WithEndpoint(targetPort: 25, scheme: "tcp", name: "smtp")
+    .WithHttpHealthCheck("/");
+
+var smtpEndpoint = smtp4dev.GetEndpoint("smtp");
+//#endif
+'@ `
+    "includeSmtp4dev"
+
+Replace-Required `
+    $appHostPath `
+    @'
+    .WithEnvironment("Identity__Seed__SeedDevelopmentTestUsers", SeedDevelopmentTestUsersValue)
+    .WithEnvironment("Starter__Email__SmtpHost", ReferenceExpression.Create($"{smtpEndpoint.Property(EndpointProperty.Host)}"))
+    .WithEnvironment("Starter__Email__SmtpPort", ReferenceExpression.Create($"{smtpEndpoint.Property(EndpointProperty.Port)}"))
+    .WaitFor(starterDb);
+'@ `
+    @'
+    .WithEnvironment("Identity__Seed__SeedDevelopmentTestUsers", SeedDevelopmentTestUsersValue)
+//#if (includeSmtp4dev)
+    .WithEnvironment("Starter__Email__SmtpHost", ReferenceExpression.Create($"{smtpEndpoint.Property(EndpointProperty.Host)}"))
+    .WithEnvironment("Starter__Email__SmtpPort", ReferenceExpression.Create($"{smtpEndpoint.Property(EndpointProperty.Port)}"))
+//#endif
+    .WaitFor(starterDb);
+'@ `
+    'WithEnvironment("Identity__Seed__SeedDevelopmentTestUsers", SeedDevelopmentTestUsersValue)
+//#if (includeSmtp4dev)'
+
+Replace-Required `
+    $appHostPath `
+    @'
+    .WithEnvironment("Identity__Seed__SeedDevelopmentTestUsers", SeedDevelopmentTestUsersValue)
+    .WithEnvironment("Starter__Email__SmtpHost", ReferenceExpression.Create($"{smtpEndpoint.Property(EndpointProperty.Host)}"))
+    .WithEnvironment("Starter__Email__SmtpPort", ReferenceExpression.Create($"{smtpEndpoint.Property(EndpointProperty.Port)}"))
+    .WaitFor(smtp4dev)
+    .WithReference(apiService)
+'@ `
+    @'
+    .WithEnvironment("Identity__Seed__SeedDevelopmentTestUsers", SeedDevelopmentTestUsersValue)
+//#if (includeSmtp4dev)
+    .WithEnvironment("Starter__Email__SmtpHost", ReferenceExpression.Create($"{smtpEndpoint.Property(EndpointProperty.Host)}"))
+    .WithEnvironment("Starter__Email__SmtpPort", ReferenceExpression.Create($"{smtpEndpoint.Property(EndpointProperty.Port)}"))
+    .WaitFor(smtp4dev)
+//#endif
+    .WithReference(apiService)
+'@ `
+    'WaitFor(smtp4dev)
+//#endif'
+
+Replace-Required `
     (Join-Path $templateRoot "Starter.AppHost\Starter.AppHost.csproj") `
-    '    <PackageReference Include="Aspire.Hosting.PostgreSQL" Version="13.4.0" />' `
+    '    <PackageReference Include="Aspire.Hosting.PostgreSQL" Version="13.4.2" />' `
     @'
     <!--#if (usePostgreSql) -->
-    <PackageReference Include="Aspire.Hosting.PostgreSQL" Version="13.4.0" />
+    <PackageReference Include="Aspire.Hosting.PostgreSQL" Version="13.4.2" />
     <!--#endif -->
     <!--#if (useSqlServer) -->
-    <PackageReference Include="Aspire.Hosting.SqlServer" Version="13.4.0" />
+    <PackageReference Include="Aspire.Hosting.SqlServer" Version="13.4.2" />
     <!--#endif -->
 '@ `
     "Aspire.Hosting.SqlServer"
 
 Replace-Required `
     (Join-Path $templateRoot "Starter.ApiService\Starter.ApiService.csproj") `
-    '    <PackageReference Include="Aspire.Npgsql.EntityFrameworkCore.PostgreSQL" Version="13.4.0" />' `
+    '    <PackageReference Include="Aspire.Npgsql.EntityFrameworkCore.PostgreSQL" Version="13.4.2" />' `
     @'
     <!--#if (usePostgreSql) -->
-    <PackageReference Include="Aspire.Npgsql.EntityFrameworkCore.PostgreSQL" Version="13.4.0" />
+    <PackageReference Include="Aspire.Npgsql.EntityFrameworkCore.PostgreSQL" Version="13.4.2" />
     <!--#endif -->
     <!--#if (useSqlServer) -->
-    <PackageReference Include="Aspire.Microsoft.EntityFrameworkCore.SqlServer" Version="13.4.0" />
+    <PackageReference Include="Aspire.Microsoft.EntityFrameworkCore.SqlServer" Version="13.4.2" />
     <!--#endif -->
 '@ `
     "Aspire.Microsoft.EntityFrameworkCore.SqlServer"
 
 Replace-Required `
     (Join-Path $templateRoot "Starter.MigrationService\Starter.MigrationService.csproj") `
-    '    <PackageReference Include="Aspire.Npgsql.EntityFrameworkCore.PostgreSQL" Version="13.4.0" />' `
+    '    <PackageReference Include="Aspire.Npgsql.EntityFrameworkCore.PostgreSQL" Version="13.4.2" />' `
     @'
     <!--#if (usePostgreSql) -->
-    <PackageReference Include="Aspire.Npgsql.EntityFrameworkCore.PostgreSQL" Version="13.4.0" />
+    <PackageReference Include="Aspire.Npgsql.EntityFrameworkCore.PostgreSQL" Version="13.4.2" />
     <!--#endif -->
     <!--#if (useSqlServer) -->
-    <PackageReference Include="Aspire.Microsoft.EntityFrameworkCore.SqlServer" Version="13.4.0" />
+    <PackageReference Include="Aspire.Microsoft.EntityFrameworkCore.SqlServer" Version="13.4.2" />
     <!--#endif -->
 '@ `
     "Aspire.Microsoft.EntityFrameworkCore.SqlServer"
@@ -234,6 +292,22 @@ builder.AddSqlServerDbContext<CatalogDbContext>("starterdb");
 //#endif
 '@ `
     "AddSqlServerDbContext<ApplicationDbContext>"
+
+Replace-Required `
+    (Join-Path $templateRoot "Starter.MigrationService\Program.cs") `
+    @'
+            await BaselineExistingEnsureCreatedDatabaseAsync(applicationDbContext, logger, stoppingToken);
+
+            logger.LogInformation("Applying application database migrations.");
+'@ `
+    @'
+            await BaselineExistingEnsureCreatedDatabaseAsync(applicationDbContext, logger, stoppingToken);
+            await CreateMigrationsHistoryTableAsync(applicationDbContext, stoppingToken);
+            await CreateMigrationsHistoryTableAsync(catalogDbContext, stoppingToken);
+
+            logger.LogInformation("Applying application database migrations.");
+'@ `
+    "CreateMigrationsHistoryTableAsync(catalogDbContext, stoppingToken)"
 
 Replace-Required `
     (Join-Path $templateRoot "Starter.Web\Program.cs") `
@@ -451,6 +525,124 @@ Replace-Required `
 @*#endif*@
 '@ `
     "@*#if (includeSmtp4dev)*@`n        new(`"Email capture configured`""
+
+$webTestsPath = Join-Path $templateRoot "Starter.Tests\WebTests.cs"
+if (Test-Path -LiteralPath $webTestsPath) {
+    Replace-Required `
+        $webTestsPath `
+        '        var smtpClient = app.CreateHttpClient("smtp4dev");' `
+        @'
+//#if (includeSmtp4dev)
+        var smtpClient = app.CreateHttpClient("smtp4dev");
+//#endif
+'@ `
+        "includeSmtp4dev"
+
+    Replace-Required `
+        $webTestsPath `
+        '        await app.ResourceNotifications.WaitForResourceHealthyAsync("smtp4dev", cancellationToken).WaitAsync(DefaultTimeout, cancellationToken);' `
+        @'
+//#if (includeSmtp4dev)
+        await app.ResourceNotifications.WaitForResourceHealthyAsync("smtp4dev", cancellationToken).WaitAsync(DefaultTimeout, cancellationToken);
+//#endif
+'@ `
+        'WaitForResourceHealthyAsync("smtp4dev", cancellationToken)
+//#endif'
+
+    Replace-Required `
+        $webTestsPath `
+        @'
+        // Act + Assert: forgot-password uses the seeded SMTP settings and is captured by smtp4dev.
+        var forgotResponse = await httpClient.PostAsync(
+            "/account/forgot-password",
+            new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["Email"] = "admin@starter.local",
+            }),
+            cancellationToken);
+        Assert.True(forgotResponse.IsSuccessStatusCode || forgotResponse.StatusCode == HttpStatusCode.Redirect);
+
+        await WaitForSmtpMessageAsync(smtpClient, "Reset your Starter password", cancellationToken);
+'@ `
+        @'
+//#if (includeSmtp4dev)
+        // Act + Assert: forgot-password uses the seeded SMTP settings and is captured by smtp4dev.
+        var forgotResponse = await httpClient.PostAsync(
+            "/account/forgot-password",
+            new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["Email"] = "admin@starter.local",
+            }),
+            cancellationToken);
+        Assert.True(forgotResponse.IsSuccessStatusCode || forgotResponse.StatusCode == HttpStatusCode.Redirect);
+
+        await WaitForSmtpMessageAsync(smtpClient, "Reset your Starter password", cancellationToken);
+//#endif
+'@ `
+        'await WaitForSmtpMessageAsync(smtpClient, "Reset your Starter password", cancellationToken);
+//#endif'
+
+    Replace-Required `
+        $webTestsPath `
+        @'
+    private static async Task WaitForSmtpMessageAsync(
+        HttpClient smtpClient,
+        string expectedText,
+        CancellationToken cancellationToken)
+    {
+        var deadline = DateTimeOffset.UtcNow.AddSeconds(30);
+        var lastResponse = string.Empty;
+
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            var response = await smtpClient.GetAsync("/api/messages", cancellationToken);
+            lastResponse = await response.Content.ReadAsStringAsync(cancellationToken);
+
+            if (lastResponse.Contains(expectedText, StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            await Task.Delay(TimeSpan.FromMilliseconds(500), cancellationToken);
+        }
+
+        Assert.True(
+            lastResponse.Contains(expectedText, StringComparison.OrdinalIgnoreCase),
+            $"smtp4dev did not receive a message containing '{expectedText}'. Last response: {lastResponse}");
+    }
+'@ `
+        @'
+//#if (includeSmtp4dev)
+    private static async Task WaitForSmtpMessageAsync(
+        HttpClient smtpClient,
+        string expectedText,
+        CancellationToken cancellationToken)
+    {
+        var deadline = DateTimeOffset.UtcNow.AddSeconds(30);
+        var lastResponse = string.Empty;
+
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            var response = await smtpClient.GetAsync("/api/messages", cancellationToken);
+            lastResponse = await response.Content.ReadAsStringAsync(cancellationToken);
+
+            if (lastResponse.Contains(expectedText, StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            await Task.Delay(TimeSpan.FromMilliseconds(500), cancellationToken);
+        }
+
+        Assert.True(
+            lastResponse.Contains(expectedText, StringComparison.OrdinalIgnoreCase),
+            $"smtp4dev did not receive a message containing '{expectedText}'. Last response: {lastResponse}");
+    }
+//#endif
+'@ `
+        "//#if (includeSmtp4dev)
+    private static async Task WaitForSmtpMessageAsync"
+}
 
 $readmePath = Join-Path $templateRoot "README.md"
 if (Test-Path -LiteralPath $readmePath) {

@@ -56,6 +56,8 @@ internal sealed class Worker(
             var catalogDbContext = scope.ServiceProvider.GetRequiredService<CatalogDbContext>();
 
             await BaselineExistingEnsureCreatedDatabaseAsync(applicationDbContext, logger, stoppingToken);
+            await CreateMigrationsHistoryTableAsync(applicationDbContext, stoppingToken);
+            await CreateMigrationsHistoryTableAsync(catalogDbContext, stoppingToken);
 
             logger.LogInformation("Applying application database migrations.");
             await applicationDbContext.Database.MigrateAsync(stoppingToken);

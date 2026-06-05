@@ -4,7 +4,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <PackageType>Template</PackageType>
     <PackageId>Vwzhang.AspireAdminStarter.Templates</PackageId>
-    <PackageVersion>0.1.36</PackageVersion>
+    <PackageVersion>0.1.37</PackageVersion>
     <Title>Aspire Admin Starter Templates</Title>
     <Authors>vwzhang</Authors>
     <Description>Project template for an Aspire admin starter with Blazor, Identity, PostgreSQL or SQL Server, Redis, pgAdmin, smtp4dev, migrations, admin modules, and a CRUD sample.</Description>
@@ -14,6 +14,7 @@
     <RepositoryUrl>https://github.com/vwzhang/Starter.Template</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>aspire-admin-starter-icon.png</PackageIcon>
     <EnableDefaultItems>false</EnableDefaultItems>
     <IncludeContentInPack>true</IncludeContentInPack>
     <IncludeBuildOutput>false</IncludeBuildOutput>
@@ -26,6 +27,7 @@
     <Content Include="templates\**\*"
              Exclude="templates\**\bin\**;templates\**\obj\**;templates\**\.vs\**;templates\**\.git\**;templates\**\.agents\**;templates\**\.codex\**;templates\**\.claude\**;templates\**\.playwright-cli\**;templates\**\.mcp.json" />
     <None Include="README.md" Pack="true" PackagePath="\" />
+    <None Include="resources\aspire-admin-starter-icon.png" Pack="true" PackagePath="\" />
   </ItemGroup>
 
 </Project>
